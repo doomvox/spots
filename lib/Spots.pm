@@ -4,7 +4,7 @@ use MooX::Types::MooseLike::Base qw(:all);
 
 =head1 NAME
 
-Spots - The great new Spots! TODO revise this
+Spots - a database of web sites and links
 
 =head1 VERSION
 
@@ -12,22 +12,24 @@ Version 0.01
 
 =cut
 
-# TODO revise these before shipping
 our $VERSION = '0.01';
 my $DEBUG = 1;
 
 =head1 SYNOPSIS
 
-   use Spots;
-   my $obj = Spots->new({ ...  });
-
-   # TODO expand on this
+   See: Spots::Homepage
 
 =head1 DESCRIPTION
 
-Spots is a module that ...
+Spots is a project that works with a postgresql database 
+to track web sites and link information.
 
-TODO expand this stub documentation, which was created by perlnow.el.
+At present the Spots.pm module is just a placeholder.
+The initial motivation of this project is to contain
+the Spots::Homepage code. Some day, Spots.pm might
+become a parent class for common code for a family 
+of projects... or it might just be used as a pod 
+repository.
 
 =head1 METHODS
 
