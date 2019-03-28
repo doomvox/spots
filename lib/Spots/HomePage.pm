@@ -396,9 +396,6 @@ sub list_all_cats {
   return $all_cats;
 }
 
-# 
-
-
 =item lookup_cat
 
 Example usage:
