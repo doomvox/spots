@@ -5,3 +5,12 @@
 MYMETA.*
 !META.json
 /.prove
+.rep
+Old
+/bin/gbhp-a.pl
+/bin/gbhp-b.pl
+/bin/mah_moz_ohm.css
+/bin/mah_moz_ohm.html
+original_bin_dot_git
+/t/02-html_fh.html
+.gitignore
