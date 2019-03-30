@@ -4,20 +4,21 @@
 
 =head1 NAME
 
-generate_homepage.pl - (( TODO insert brief description ))
+generate_homepage.pl - generate mah_moz.html from spots db
 
 =head1 SYNOPSIS
 
-  generate_homepage.pl -[options] [arguments]
-
-  TODO
+  # put output files in current directory
+  generate_homepage.pl
 
 =head1 DESCRIPTION
 
-B<generate_homepage.pl> is a script which
+B<generate_homepage.pl> is a script which generates one of my standard
+"browser homepages" (a collection of links tersely labeled and arranged 
+in a tight one-screen layout).
 
-(( TODO  insert explanation
-   This is stub documentation created by template.el.  ))
+It uses these spots db tables to drive the process:
+  spots, category, metacats
 
 =cut
 
@@ -55,10 +56,29 @@ GetOptions ("d|debug"    => \$DEBUG,
 
 use FindBin qw($Bin);
 use lib ("$Bin/../lib/");
-use Spots::HomePage; # added by perlnow
+use Spots::HomePage; 
+
+# TODO rethink:
+my $base             = shift || "mah_moz";
+my $output_directory = shift || cwd();
+
+my $obj = Spots::HomePage->new(
+                               output_basename  => $base,
+                               output_directory => $output_directory,
+                               db_database_name => 'spots',
+                              );
 
 
+# TODO does this help? (Q: how hard to add rollback-like feature?)
+# # wipe the coordinate columns in the layout table
+# $obj->clear_layout;
 
+my $style   = "metacats";
+$obj->generate_layout( $style );
+
+$obj->html_css_from_layout();
+
+# TODO check whether expected file has been created/modified
 
 
 ### end main, into the subs

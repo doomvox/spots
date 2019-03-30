@@ -91,15 +91,23 @@ to the names of the object attributes. These attributes are:
 
 has db_database_name => (is => 'rw', isa => Str, default => 'spots' );
 
-has output_basename  => (is => 'rw', isa => Str, default => 'moz_ohm' );
-has output_directory => (is => 'rw', isa => Str, default => '/home/doom/End/Cave/Spots/Wall' );
+has output_basename  => (is => 'rw', isa => Str,
+                         default => 'moz_ohm' );
+has output_directory => (is => 'rw', isa => Str,
+                         default => "$HOME/End/Cave/Spots/Wall" );
 
-# the values here were empirically determined
-has vertical_scale     => (is => 'rw', isa => Num,  default => 1.20 );  # rem per line
-has horizontal_scale   => (is => 'rw', isa => Int,  default => 9    );  # px per char
+# default values empirically determined
+# rem per line
+has vertical_scale     => (is => 'rw', isa => Num,  default => 1.17 );  
+# px per char
+has horizontal_scale   => (is => 'rw', isa => Int,  default => 9    );  
+has vertical_padding   => (is => 'rw', isa => Num,  default => 0.6 );  # rem
+has horizontal_padding => (is => 'rw', isa => Int,  default => 2   );  # px 
 
-has html_file        => (is => 'rw', isa => Str, lazy => 1, builder => 'builder_html_file' );
-has css_file         => (is => 'rw', isa => Str, lazy => 1, builder => 'builder_css_file' );
+has html_file        => (is => 'rw', isa => Str, lazy => 1,
+                         builder => 'builder_html_file' );
+has css_file         => (is => 'rw', isa => Str, lazy => 1,
+                         builder => 'builder_css_file' );
 
 # horizontal distance in px between category "rectpara"s
 has gutter          => (is => 'rw', isa => Int, default=>4 );
@@ -110,23 +118,26 @@ has cats_per_row    => (is => 'rw', isa => Int, default=>7 );
 # What I'm supposed to do (who would think this is better than Mouse?):
 has dbh              => (is => 'rw',   
                          isa => sub {
-                           die "$_[0] not a db handle" unless ref $_[0] eq 'DBI::db'
-                         },
+                           die "$_[0] not a db handle"
+                             unless ref $_[0] eq 'DBI::db'
+                           },
                          lazy => 1, builder => 'builder_db_connection' );
 
-has sth_cat              => (is => 'rw',   
-                             isa => sub {
-                               die "$_[0] not a db statement handle" unless ref $_[0] eq 'DBI::st'
-                             },
-                            lazy => 1, builder => 'builder_prep_sth_sql_cat');
+has sth_cat           => (is => 'rw',   
+                          isa => sub {
+                            die "$_[0] not a db statement handle"
+                              unless ref $_[0] eq 'DBI::st'
+                            },
+                          lazy => 1, builder => 'builder_prep_sth_sql_cat');
 
 
-has sth_cat_size          => (is => 'rw', 
-                             isa => sub {
-                               die "$_[0] not a db statement handle" unless ref $_[0] eq 'DBI::st'
-                             },
-                            lazy => 1, builder => 'builder_prep_sth_sql_cat_size');
-
+has sth_cat_size      => (is => 'rw', 
+                          isa => sub {
+                            die "$_[0] not a db statement handle"
+                              unless ref $_[0] eq 'DBI::st'
+                            },
+                          lazy => 1,
+                          builder => 'builder_prep_sth_sql_cat_size');
 
 sub builder_html_file {
   my $self = shift;
@@ -150,7 +161,6 @@ sub builder_html_fh {
   open( my $html_fh, '>', $html_file ); 
   return $html_fh;
 }
-
 
 sub builder_css_fh {
   my $self = shift;
@@ -234,12 +244,11 @@ sub generate_layout {
 }
 
 
-=item generate_layout_by_size
+=item generate_layout_metacats 
 
 =cut
 
 sub generate_layout_metacats {
-### TODO begining as a copy of by_size, mutate to deal with metacat table BOOKMARK
   my $self = shift;
   my ($x, $y) = (5, 0);
   my $cats_per_row = $self->cats_per_row;
@@ -268,19 +277,16 @@ sub generate_layout_metacats {
       }
     }
 
-    my $vertical_scale   = $self->vertical_scale;    # 1.20 rem per line
-    my $horizontal_scale = $self->horizontal_scale;  # 9 px per char
-    
-    my $height =  $spot_count * $vertical_scale ;    # height sized for the number of lines (rem)
-    my $width  =  $max_chars  * $horizontal_scale ;  # estimated width to fit number of chars (px)
+    my ($height_rem, $width_px) =
+      $self->cat_dimensions($spot_count, $max_chars);
 
-    $self->update_layout_for_cat( $cat_id, $x, $y, $width, $height );
+    $self->update_layout_for_cat( $cat_id, $x, $y, $width_px, $height_rem );
 
     my $gutter = $self->gutter;
-    $x += $width + $gutter;
+    $x += $width_px + $gutter;
 
-    if ( $height > $max_h ) {
-      $max_h = $height;
+    if ( $height_rem > $max_h ) {
+      $max_h = $height_rem;
     }
 
     $cat_count++;
@@ -293,6 +299,38 @@ sub generate_layout_metacats {
     }
   }
 }
+
+
+
+=item cat_dimensions
+
+Given number of lines and maximum number of characters for a
+"cat" (category), get the absolute dimensions to use for a
+containing rectangle in rem and px.
+
+Example usage: 
+
+    my ($height_rem, $width_px) = 
+      $self->cat_dimensions( $spot_count, $max_chars );
+
+=cut
+
+sub cat_dimensions {
+  my $self = shift;
+  my $spot_count = shift;
+  my $max_chars  = shift;
+
+  my $vertical_scale     = $self->vertical_scale;     # 1.20 rem per line 
+  my $vertical_padding   = $self->vertical_padding;   #   maybe 0.5 rem 
+  my $horizontal_scale   = $self->horizontal_scale;   # 9 px per char 
+  my $horizontal_padding = $self->horizontal_padding; #   maybe 2 pxb
+
+  my $height =   $spot_count * $vertical_scale   + $vertical_padding;
+  my $width  =  int( $max_chars  * $horizontal_scale + $horizontal_padding ); 
+
+  return ($height, $width);
+}
+
 
 
 
@@ -332,8 +370,8 @@ sub generate_layout_by_size {
     my $vertical_scale   = $self->vertical_scale;    # 1.20 rem per line
     my $horizontal_scale = $self->horizontal_scale;  # 9 px per char
     
-    my $height =  $spot_count * $vertical_scale ;    # height sized for the number of lines (rem)
-    my $width  =  $max_chars  * $horizontal_scale ;  # estimated width to fit number of chars (px)
+    my $height =  $spot_count * $vertical_scale ;    # height for lines (rem)
+    my $width  =  $max_chars  * $horizontal_scale ;  # width for chars (px)
 
     $self->update_layout_for_cat( $cat_id, $x, $y, $width, $height );
 
@@ -537,7 +575,8 @@ sub update_layout_for_cat {
   my $width  = shift;
   my $height = shift;
 
-  my $sql_update = $self->sql_to_update_layout( $cat_id, $x, $y, $width, $height );
+  my $sql_update =
+    $self->sql_to_update_layout( $cat_id, $x, $y, $width, $height );
 
   my $dbh = $self->dbh;
   my $rows_affected = 
