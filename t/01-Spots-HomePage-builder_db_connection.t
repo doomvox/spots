@@ -21,7 +21,7 @@ use Test::More;
 BEGIN {
   use FindBin qw($Bin);
   use lib ("$Bin/../lib/");
-  use_ok( 'Spots::HomePage' , )
+  use_ok( 'Spots::HomePage'  );
 }
 
 ok(1, "Traditional: If we made it this far, we're ok.");

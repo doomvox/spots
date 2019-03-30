@@ -18,33 +18,6 @@ CREATE DATABASE spots WITH OWNER='postgres';
 CONNECT spots;
 */
 
-CREATE TABLE spots (
-       id           SERIAL PRIMARY KEY NOT NULL,
-       url          VARCHAR(256) NOT NULL,
-       label        VARCHAR(64),
-       static       BOOLEAN,
-       title        TEXT, -- from <TITLE>
-       description  TEXT, 
-       added        TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
-       revised      TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP, -- needs trigger
-       live         BOOLEAN,
-       categories   INTEGER);
-
-CREATE TABLE categories (
-       id           SERIAL PRIMARY KEY NOT NULL,
-       name VARCHAR(32)
-);
-
-CREATE TABLE layout (
-       id           SERIAL PRIMARY KEY NOT NULL,
-       categories  INTEGER,
-       x_location  INTEGER,
-       y_location  INTEGER,
-       height      INTEGER,
-       width       INTEGER
-);
-
-
 CREATE OR REPLACE FUNCTION update_revised_timestamp_function()
 RETURNS TRIGGER 
 AS 
@@ -56,13 +29,68 @@ BEGIN
 END;                          
 $$                            
 language 'plpgsql';           
+
+CREATE TABLE spots (
+       id           SERIAL PRIMARY KEY NOT NULL,
+       url          VARCHAR(256) NOT NULL,
+       label        VARCHAR(64),
+       static       BOOLEAN,
+       title        TEXT, -- from <TITLE>
+       description  TEXT, 
+       added        TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
+       revised      TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP, -- needs trigger
+       live         BOOLEAN,
+       category     INTEGER);
                               
-/* create a trigger on each table with an 'revised' column */
+/* create a trigger on any table with a 'revised' column */
 CREATE TRIGGER row_mod_on_spot_trigger
 BEFORE UPDATE                             
 ON spots
 FOR EACH ROW                              
 EXECUTE PROCEDURE update_revised_timestamp_function();
+
+
+CREATE TABLE category (
+       id           SERIAL PRIMARY KEY NOT NULL,
+       metacat      INTEGER,
+       name         VARCHAR(32)
+);
+
+CREATE TABLE metacat (
+       id           SERIAL PRIMARY KEY NOT NULL,
+       category     INTEGER,
+       sortcode     VARCHAR(4),  
+       name         VARCHAR(32)
+);
+
+CREATE TABLE layout (
+       id           SERIAL PRIMARY KEY NOT NULL,
+       category  INTEGER,
+       x_location  INTEGER,
+       y_location  INTEGER,
+       height      INTEGER,
+       width       INTEGER
+);
+
+CREATE TABLE projects (
+       id  SERIAL PRIMARY KEY NOT NULL,
+       schema_version   VARCHAR(16),    -- e.g. "3.0"
+       name             VARCHAR(128),
+       description      TEXT,
+       changes          TEXT,
+       added            TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
+       revised          TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP, -- needs trigger
+       notes_file       TEXT
+);
+
+CREATE TRIGGER row_mod_on_spot_trigger
+BEFORE UPDATE                             
+ON project
+FOR EACH ROW                              
+EXECUTE PROCEDURE update_revised_timestamp_function();
+
+
+
 
 /*
 insert into spots (url, label) VALUES ('http://slashdot.net', 'slash'), ('http://www.transbaycalendar.org/', 'transbay');
@@ -70,11 +98,11 @@ update spots set url='https://slashdot.net' where label='slash';
 */
 
 /*
-COPY spots(categories,label,url,description) FROM '/home/doom/End/Cave/Spots/dat/spot1.tsv'  DELIMITER E'\t' CSV HEADER;
+COPY spots(category,label,url,description) FROM '/home/doom/End/Cave/Spots/dat/spot1.tsv'  DELIMITER E'\t' CSV HEADER;
 */
 
 
-COPY public.layout (id, categories, x_location, y_location, height, width) FROM stdin;
+COPY public.layout (id, category, x_location, y_location, height, width) FROM stdin;
 34	34	123	100	\N	\N
 35	35	151	100	\N	\N
 36	36	215	100	\N	\N
@@ -127,7 +155,7 @@ COPY public.layout (id, categories, x_location, y_location, height, width) FROM 
 33	33	5	100	\N	\N
 \.
 
-COPY public.spots (id, url, label, static, title, description, added, revised, live, categories) FROM stdin;
+COPY public.spots (id, url, label, static, title, description, added, revised, live, category) FROM stdin;
 1	http://museumca.org/	oakmus	\N	\N	\N	2019-03-15 18:26:48.260727-07	2019-03-15 18:26:48.260727-07	\N	1
 3	http://duckduckgo.com/	duckgo	\N	\N	\N	2019-03-15 18:26:48.260727-07	2019-03-15 18:26:48.260727-07	\N	4
 4	http://citeseerx.ist.psu.edu/	citeseerx	\N	\N	\N	2019-03-15 18:26:48.260727-07	2019-03-15 18:26:48.260727-07	\N	4

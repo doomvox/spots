@@ -101,18 +101,6 @@ has horizontal_scale   => (is => 'rw', isa => Int,  default => 9    );  # px per
 has html_file        => (is => 'rw', isa => Str, lazy => 1, builder => 'builder_html_file' );
 has css_file         => (is => 'rw', isa => Str, lazy => 1, builder => 'builder_css_file' );
 
-# TODO why *doesn't* this work?
-# has html_fh          => (is => 'rw', isa => sub {
-#                            die "$_[0] not a file handle" unless ref $_[0] eq 'GLOB'
-#                          },
-#                          lazy => 1, builder => 'builder_html_fh' );
-
-# has css_fh          => (is => 'rw', isa => sub {
-#                            die "$_[0] not a file handle" unless ref $_[0] eq 'GLOB'
-#                          },
-#                          lazy => 1, builder => 'builder_css_fh' );
-
-
 # horizontal distance in px between category "rectpara"s
 has gutter          => (is => 'rw', isa => Int, default=>4 );
 has cats_per_row    => (is => 'rw', isa => Int, default=>7 );
@@ -226,18 +214,37 @@ sub builder_prep_sth_sql_cat_size {
 
 =item generate_layout
 
-Use the spots/categories tables to generate a layout scheme,
+Use the spots/category tables to generate a layout scheme,
 saving the coordinates to the layout table.
+
+Takes one optional argument, a string to specify a layout style.
+
+  'by_size'  - the original proof of concept, linear by size of category  
+  'metacats' - adding another level of classification, grouping the categories
 
 =cut
 
 sub generate_layout {
   my $self = shift;
+  my $style = shift || 'by_size'; 
 
+  my $method = "generate_layout_$style";
+  my $ret = $self->$method;
+  return $ret;
+}
+
+
+=item generate_layout_by_size
+
+=cut
+
+sub generate_layout_metacats {
+### TODO begining as a copy of by_size, mutate to deal with metacat table BOOKMARK
+  my $self = shift;
   my ($x, $y) = (5, 0);
   my $cats_per_row = $self->cats_per_row;
 
-  my $all_cats = $self->list_all_cats;
+  my $all_cats = $self->list_all_cats('metacats'); 
   my ($cat_count, $max_h) = (0, 0);
   # for each category rectpara
  CAT: 
@@ -246,7 +253,7 @@ sub generate_layout {
     my $cat_name = $cat->{ name };
 
     my ($cat_spots, $spot_count) = $self->lookup_cat( $cat_id );  
-    next CAT unless $cat_spots;  # skip empty categories
+    next CAT unless $cat_spots;  # skip empty category
 
     my $max_chars = 0;
     # for each link line in a cat rectpara
@@ -289,6 +296,68 @@ sub generate_layout {
 
 
 
+=item generate_layout_by_size
+
+=cut
+
+sub generate_layout_by_size {
+  my $self = shift;
+  my ($x, $y) = (5, 0);
+  my $cats_per_row = $self->cats_per_row;
+
+  my $all_cats = $self->list_all_cats('by_size'); 
+  my ($cat_count, $max_h) = (0, 0);
+  # for each category rectpara
+ CAT: 
+  foreach my $cat ( @{ $all_cats } ) {
+    my $cat_id   = $cat->{ id };
+    my $cat_name = $cat->{ name };
+
+    my ($cat_spots, $spot_count) = $self->lookup_cat( $cat_id );  
+    next CAT unless $cat_spots;  # skip empty category
+
+    my $max_chars = 0;
+    # for each link line in a cat rectpara
+    foreach my $spot ( @{ $cat_spots } ) {
+      my $url     =  $spot->{ url };
+      my $label   =  $spot->{ label };
+      my $spot_id =  $spot->{ id };
+
+      my $chars = length( $label );
+      if ( $chars > $max_chars ) {
+        $max_chars = $chars;
+      }
+    }
+
+    my $vertical_scale   = $self->vertical_scale;    # 1.20 rem per line
+    my $horizontal_scale = $self->horizontal_scale;  # 9 px per char
+    
+    my $height =  $spot_count * $vertical_scale ;    # height sized for the number of lines (rem)
+    my $width  =  $max_chars  * $horizontal_scale ;  # estimated width to fit number of chars (px)
+
+    $self->update_layout_for_cat( $cat_id, $x, $y, $width, $height );
+
+    my $gutter = $self->gutter;
+    $x += $width + $gutter;
+
+    if ( $height > $max_h ) {
+      $max_h = $height;
+    }
+
+    $cat_count++;
+    if ( $cat_count > $cats_per_row ) {
+      $cat_count = 0;
+      $x = 5;
+      say STDERR $max_h;
+      $y += $max_h + 1;
+      $max_h = 0;
+    }
+  }
+}
+
+
+
+
 =item html_css_from_layout
 
 Generate the html and css files from the coordinates in the layout table.
@@ -326,7 +395,7 @@ sub html_css_from_layout {
       $self->lookup_cat_and_size( $cat_id );  
 
     my $css_cat_id  = "cat" . sprintf("%04d", $cat_id);
-    my $cat_html = qq{<div class="categories" id="$css_cat_id" data-catname="$cat_name" >\n}; 
+    my $cat_html = qq{<div class="category" id="$css_cat_id" data-catname="$cat_name" >\n}; 
 
     my $max_chars = 0;
     foreach my $t ( @{ $cat_spots } ) {
@@ -342,7 +411,7 @@ sub html_css_from_layout {
     # print block to the html handle
     print {$html_fh} $cat_html, "\n";
 
-    # css for the categories                    
+    # css for the category                    
     my $x_str = $x . 'px';
     my $y_str = $y . 'rem'; 
 
@@ -387,9 +456,10 @@ Return an array of hrefs keyed like:
 
 sub list_all_cats {
   my $self = shift;
+  my $style = shift || 'by_size';
   my $dbh = $self->dbh;
 
-  my $sql = $self->sql_for_all_cats();
+  my $sql = $self->sql_for_all_cats( $style );
   my $sth = $dbh->prepare( $sql );
   $sth->execute;
   my $all_cats = $sth->fetchall_arrayref({});
@@ -449,9 +519,6 @@ sub lookup_cat_and_size {
 }
 
 
-
-
-
 =item update_layout_for_cat
 
 Store the layout information for a particular cat.
@@ -479,8 +546,6 @@ sub update_layout_for_cat {
   return $rows_affected;
 }
 
-
-
 =item maximum_height_and_width_of_layout
 
 Determine the height (rem) and width (px) of the layout.
@@ -489,14 +554,15 @@ Example usage:
 
   my ($height, $width) = 
     $self->maximum_height_and_width_of_layout;
-  
+
 =cut
 
 sub maximum_height_and_width_of_layout {
   my $self   = shift;
   my $dbh = $self->dbh;
   my $sql =
-    qq{select max( x_location  + width ) AS w, max( y_location  + height ) AS h from layout};
+    qq{SELECT MAX( x_location  + width ) AS w, } .
+    qq{ MAX( y_location  + height ) AS h FROM layout};
 
   my $sth = $dbh->prepare( $sql );
   $sth->execute;
@@ -506,10 +572,6 @@ sub maximum_height_and_width_of_layout {
 
   return( $h, $w );
 }
-
-
-
-
 
 =back
 
@@ -526,36 +588,70 @@ they contain, sorted in order of biggest to smallest.
 
 sub sql_for_all_cats {
   my $self = shift;
+  my $style = shift || 'by_size';
 
-  my $sql_all_cats =
-  qq{ SELECT categories AS id, categories.name AS name, COUNT(*) AS cnt 
-      FROM spots, categories WHERE spots.categories = categories.id 
-      GROUP BY categories, categories.name ORDER BY COUNT(*) DESC };
+  my $sql_all_cats;
+  if ($style eq 'by_size') { 
+    $sql_all_cats =<<"______END_SKULL_BY_SIZE";
+      SELECT 
+        category AS id, 
+        category.name AS name, 
+        COUNT(*) AS cnt 
+       FROM category, spots 
+       WHERE 
+         spots.category = category.id 
+       GROUP BY 
+         category, 
+         category.name 
+       ORDER BY COUNT(*) DESC 
+______END_SKULL_BY_SIZE
+  } elsif( ($style eq 'metacats') || ($style eq 'metacat') ) {
+    $sql_all_cats =<<"______END_SKULL_METACAT";
+      SELECT
+        metacat.sortcode  AS mc_ord,
+        metacat.name      AS mc_name, 
+        category.id       AS id,
+        category.name     AS name,
+        count(*)          AS cnt
+      FROM
+        metacat, category, spots
+      WHERE
+        spots.category = category.id AND
+        category.metacat = metacat.id 
+      GROUP BY 
+        metacat.sortcode,
+        metacat.name,
+        category.id,
+        category.name
+      ORDER BY 
+        metacat.sortcode;
+______END_SKULL_METACAT
+  } 
 
   return $sql_all_cats;
 }
 
 =item sql_for_cat
 
-SQL to get label and url information for a given categories.id.
+SQL to get label and url information for a given category.id.
 
 =cut
 
 sub sql_for_cat {
   my $self = shift;
-  my $sql_cat = "SELECT id, url, label FROM spots WHERE categories = ?";
+  my $sql_cat = "SELECT id, url, label FROM spots WHERE category = ?";
   return $sql_cat;
 }
 
 =item sql_for_cat_size
 
-SQL to get position information for a given categories.id.
+SQL to get position information for a given category.id.
 
 =cut
 
 sub sql_for_cat_size {
   my $self = shift;
-  my $sql_pos = "SELECT x_location, y_location, width, height FROM layout WHERE categories = ?";
+  my $sql_pos = "SELECT x_location, y_location, width, height FROM layout WHERE category = ?";
   return $sql_pos;
 }
 
@@ -565,14 +661,14 @@ sub sql_for_cat_size {
 
 =cut
 
-# TODO Q: why am I interpolating rather than using bind params?
+# TODO Q: why string interpolation rather than bind params?
 
 # TODO do an upsert instead of a simple update?
 # 
 #   my $update_sql = 
-#   qq{ INSERT INTO layout (categories, x_location, y_location) 
+#   qq{ INSERT INTO layout (category, x_location, y_location) 
 #       VALUES ($cat_id, $x, $y) 
-#       ON CONFLICT (categories) 
+#       ON CONFLICT (category) 
 #       DO 
 #         UPDATE
 #           SET x=$x, y = $y; };
@@ -588,7 +684,7 @@ sub sql_to_update_layout {
   my $update_sql = 
     qq{UPDATE layout } .
     qq{SET x_location=$x, y_location=$y, width=$width, height=$height } .
-    qq{   WHERE categories = $cat_id };
+    qq{   WHERE category = $cat_id };
 
   return $update_sql;
 }
@@ -702,7 +798,7 @@ body {
     background: lightgray;
 }
 
-.categories {
+.category {
        background: yellow;
        border: solid 1px;
        padding: 2px;

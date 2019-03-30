@@ -82,7 +82,7 @@ ok(1, "Traditional: If we made it this far, we're ok.");
 
 # Look for something like this in the html file:
 
-# <div class="categories" id="cat0033" data-catname="linux" >
+# <div class="category" id="cat0033" data-catname="linux" >
 # <a href="http://debaday.debian.net/">debaday</a><br>
 # <a href="http://kernelnewbies.org/">kern_newbs</a><br>
 # <a href="http://www.debian-administration.org/">debadmin</a><br>
