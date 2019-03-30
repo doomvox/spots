@@ -114,8 +114,11 @@ has gutter          => (is => 'rw', isa => Int, default=>4 );
 has cats_per_row    => (is => 'rw', isa => Int, default=>7 );
 
 # The way I'd like Moo to work:
-#   has dbh              => (is => 'rw', isa => 'DBI::db',  lazy => 1, builder => 'builder_db_connection' );
-# What I'm supposed to do (who would think this is better than Mouse?):
+#   has dbh              
+#     => (is => 'rw', isa => 'DBI::db',  lazy => 1,
+#           builder => 'builder_db_connection' );
+# 
+# What I guess I'm supposed to do (is this *really* better than Mouse?):
 has dbh              => (is => 'rw',   
                          isa => sub {
                            die "$_[0] not a db handle"
@@ -129,7 +132,6 @@ has sth_cat           => (is => 'rw',
                               unless ref $_[0] eq 'DBI::st'
                             },
                           lazy => 1, builder => 'builder_prep_sth_sql_cat');
-
 
 has sth_cat_size      => (is => 'rw', 
                           isa => sub {
@@ -433,7 +435,8 @@ sub html_css_from_layout {
       $self->lookup_cat_and_size( $cat_id );  
 
     my $css_cat_id  = "cat" . sprintf("%04d", $cat_id);
-    my $cat_html = qq{<div class="category" id="$css_cat_id" data-catname="$cat_name" >\n}; 
+    my $cat_html =
+      qq{<div class="category" id="$css_cat_id" data-catname="$cat_name" >\n}; 
 
     my $max_chars = 0;
     foreach my $t ( @{ $cat_spots } ) {
@@ -690,7 +693,9 @@ SQL to get position information for a given category.id.
 
 sub sql_for_cat_size {
   my $self = shift;
-  my $sql_pos = "SELECT x_location, y_location, width, height FROM layout WHERE category = ?";
+  my $sql_pos =
+    qq{ SELECT x_location, y_location, width, height FROM layout } .
+    qq{ WHERE category = ? };
   return $sql_pos;
 }
 
@@ -755,10 +760,6 @@ sub clear_layout {
   # $dbh->commit;  # even though AutoCommit is on
   return $rows_affected;
 }
-
-
-
-
 
 
 
