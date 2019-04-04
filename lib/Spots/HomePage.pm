@@ -312,23 +312,11 @@ Returns:
   row_layout -- array of *arrays* of cats, fields:
                   cat_id  x  y  width_px  height_rem
 
-  max_y -- the height of the row in rem
+  max_y     -- the height of the row in rem
 
-  final_x    -- the width of the row (though unused here)
-
-
+  final_x   -- the width of the row (though unused here)
 
 =cut
-
-  ### for each column, shift off cats in sequence.
-  ### case 1: the first cat's height exceeds veritcal envelope $max_h
-  ###         then, increase value of max_h and redo entire row    
-  ### case 2: the upcoming cat (non-first)  fits in vertical space,
-  ###         between the last and the max_h
-  ###         then add the cat, update the bottom (adjust y)
-  ### case 3: the upcoming cat (non-first) exceeds the vertical envelope
-  ###         then, we call this column done, put the last cat back
-  ### when the next column exceeds the width criteria, call row done and ret
 
 sub generate_layout_for_row {
   my $self  = shift;
@@ -707,7 +695,8 @@ sub html_css_from_layout {
 
   # Add the headers to both html and css
   my $html_head = $self->html_header();
-  print {$html_fh} $html_head;
+  my $html_container_head = $self->html_container_head();
+  print {$html_fh} $html_head, $html_container_head;
 
   my ($container_height, $container_width) = 
     $self->maximum_height_and_width_of_layout;
@@ -763,9 +752,10 @@ sub html_css_from_layout {
 
   # add the footers to both html and css
   my $html_foot = html_footer();
+  my $html_container_footer = html_container_footer();
   my $css_foot = css_footer();
 
-  print {$html_fh} $html_foot;
+  print {$html_fh} $html_container_footer, $html_foot;
   print {$css_fh}  $css_foot;
 }
 
