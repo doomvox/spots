@@ -117,6 +117,8 @@ has x_gutter          => (is => 'rw', isa => Int, default=>4 );
 has y_gutter => (is => 'rw', isa => Int, default=>1 ); # 1 rem
 has cats_per_row    => (is => 'rw', isa => Int, default=>7 );
 
+has color_scheme => (is => 'rw', isa => Str, default => 'live' ); # or 'dev'
+
 # The way I'd like Moo to work:
 #   has dbh              
 #     => (is => 'rw', isa => 'DBI::db',  lazy => 1,
@@ -1055,6 +1057,43 @@ sub clear_layout {
 =over 
 
 
+=item colors
+
+=cut
+
+sub colors {
+  my $self = shift;
+  my $color_scheme = shift || $self->color_scheme;
+
+  my %colors;
+
+  my $black = '#000000';
+  
+  if ( $color_scheme eq 'dev' ) { 
+    %colors = 
+      (
+       container_bg => '#99AAEE',
+       category_bg  => '#DDFF00',
+       footer_bg    => 'lightgray',
+       anchor_fg    => '#003333',
+       body_bg      => '#000000',
+       body_fg      => '#CC33FF', 
+      );
+  } elsif ($color_scheme eq 'live' ) { 
+    %colors = 
+      (
+       container_bg => $black,
+       category_bg  => $black,
+       footer_bg    => $black,
+       anchor_fg    => '#EFFFFF',
+       body_bg      => $black,
+       body_fg      => $black,
+      );
+  }
+
+  return \%colors;
+}
+
 =item html_header
 
 =cut
@@ -1102,30 +1141,48 @@ sub css_header {
   my $self   = shift;
   my $height = shift || 150;
   my $height_str = $height . 'rem';
+
+
+  my $color_scheme = $self->color_scheme;
+  my $colors       = $self->colors( $color_scheme );
+  my $container_bg = $colors->{ container_bg };
+  my $category_bg  = $colors->{ category_bg };
+  my $footer_bg    = $colors->{ footer_bg };
+  my $anchor_fg    = $colors->{ anchor_fg };
+  my $body_bg      = $colors->{ body_bg };
+  my $body_fg      = $colors->{ body_fg };
+
+
   my $css = <<"__END_CSS_HEAD";
 body { 
   font-family: helvetica, verdana, arial, sans-serif;
 }
-/*  color:      #CC33FF; 
-  background: #000000; 
-*/
+
+a {
+  color:      $anchor_fg
+}
+
+body {
+  color:      $body_fg;
+  background: $body_bg;
+}
 
 .container {
     position: relative;
     top:  2px;
     left: 30px;
-    background: #99AAEE;
+    background: $container_bg;
     border: dotted;
     height: $height_str;
 }
 
 .footsie {
-    max-width:400px;
-    background: lightgray;
+    max-width: 400px;
+    background: $footer_bg;
 }
 
 .category {
-       background: yellow;
+       background: $category_bg;
        border: solid 1px;
        padding: 2px;
        position: absolute;
