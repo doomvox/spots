@@ -248,9 +248,11 @@ Takes one optional argument, a string to specify a layout style.
 sub generate_layout {
   my $self = shift;
   my $style = shift || 'by_size'; 
+  # $self->dbg("style: $style");
 
   my $method = "generate_layout_$style";
   my $ret = $self->$method;
+  # $self->farewell();
   return $ret;
 }
 
@@ -262,51 +264,59 @@ sub generate_layout {
 sub generate_layout_metacats_doublezig {
   my $self = shift;
   my ($x, $y) = ($self->initial_x, $self->initial_y);
+  # $self->dbg("");
 
   my $cats = $self->list_all_cats('metacats_doublezig'); 
-
-  # TODO
-  #  o  get the info for the whole set rather than look it up twice?
-  #  o  populate the db with h & w values first?
-
-  while( $cats ) { 
-
-    my ( $row_layout, $max_h ) =
-      $self->generate_layout_for_row( $cats, $x, $y );
-
-    foreach my $cat ( @{ $row_layout } ) {
-      my ($cat_id, $x, $y, $width_px, $height_rem) = 
-        @{ $row_layout }{ qw(cat_id x y width_px height_rem) };
-      $self->update_layout_for_cat( $cat_id, $x, $y, $width_px, $height_rem );
+  while ( $cats && scalar( @{ $cats } ) ) { 
+    my ( $row_layout, $max_y, $new_x ) =
+      $self->generate_layout_for_row( $cats, $x, $y );  # trims $cats as they're used
+    foreach my $cat_loc ( @{ $row_layout } ) {
+        my ($cat_id, $x, $y, $width_px, $height_rem) = @{ $cat_loc }; 
+        $self->update_layout_for_cat( $cat_id, $x, $y, $width_px, $height_rem ); 
     }
-
-    $x = $self->initial_x; # 5px 
-    $y += $max_h + $self->y_gutter; # 1 rem
+    $x = $self->initial_x;           # px 
+    $y = $max_y + $self->y_gutter;   # rem
+    say STDERR  "x: $x, y: $y"
   }
+  # $self->farewell();
 }
-
 
 =item generate_layout_for_row
 
-TODO approximately, this:
-
-tries to fit upcoming cats into the allowed vertical space
-(doubling or tripling up), but if the *next* cat exceeds the
-veritcal space we re-do the process with a new, larger allowed
-envelope.
+Arranges a chunk of the available sequence of cats in a row of a
+height determined by surveying the upcoming cats.  If there's
+vertical space in the row for more than one cat (rectangle of
+links in a particular category), this routine will frequently
+double or triple the cats into a column.  If the next cat exceeds
+the allowed veritcal envelope we re-do the process with a new,
+larger allowed envelope.
 
 Example usage: 
 
-    ( $row_layout, $max_h ) =
-      $self->generate_layout_for_row( $cats, $max_h, $x, $y );
+    my ( $row_layout, $max_y, $final_x ) =
+      $self->generate_layout_for_row( $cats, $x, $y );  
+
+Arguments:
+
+  $cats -- array of hashrefs (with main keys id and name).  
+           each invocation of this routine shifts the 
+           cats off of $cats that have been added to the $row_layout.
+
+  $x --    initial x value for upper-left of row
+
+  $y --    initial y value for upper-left of row
+
 
 Returns:
 
-  row_layout -- array of hrefs of cats, fields:
-                  cat_id x y width_px height_rem
+  row_layout -- array of *arrays* of cats, fields:
+                  cat_id  x  y  width_px  height_rem
 
-  new_max_h  -- either the input "max_h", or a new larger value 
-                that was used to fit a bigger-than-predicted cat
+  max_y -- the height of the row in rem
+
+  final_x    -- the width of the row (though unused here)
+
+
 
 =cut
 
@@ -325,76 +335,90 @@ sub generate_layout_for_row {
   my $cats  = shift;
   my $x     = shift;
   my $y     = shift; 
+  # $self->dbg("cat_count: " . scalar( @{ $cats } ) );
+  my $max_y; 
+
+  unless( $cats && scalar( @{ $cats } ) ){
+    die "generate_layout_for_row can't do anything without any 'cats'.";
+  }
+
   my $called_with_cats = [];
-  @{ $called_with_cats } = @{ $cats };  # elephant gun
+  @{ $called_with_cats } = @{ $cats } if $cats;  # elephant gun
   my $called_with_y = $y;
 
-  my $x_gutter          = $self->x_gutter;
+  my $x_gutter = $self->x_gutter;
   my $y_gutter = $self->y_gutter;
 
   my $cats_per_row = $self->cats_per_row;
+
   # peek ahead at the heights of next chunk of cats
-  my $max_h =   # really: target_row_height_rem
-    $self->max_height_of_next_cats( $cats, $cats_per_row + 1 ); 
-    # TODO increase trial chunk over 8 for efficiency (?).
+  my $row_height_envelope = 
+    $self->max_height_of_next_cats( $cats, $cats_per_row + 1 );  # $cats is aref of hrefs, keys id & name 
 
   my @row_layout = ();
 
-  # $cats is an array of hrefs about each category: id & name
   my $max_width_px = 0;
   my $col_count = 0;
+  my $cpr = $self->cats_per_row;
  COL:
-  while( $col_count <= $self->cats_per_row ) {  # TODO a px condition?
+  while( $col_count <= $cpr ) {  # TODO better to use a width in px condition?
     my $bottom = $y;
 
     # handle the first cat in column
     my ($cat, $cat_id, $cat_name, $cat_spots, $height_rem, $width_px) =
       $self->next_cat( $cats );
-    
-    if( $height_rem > $max_h ) {
+
+    last COL unless $cat_id;
+
+    $max_y = $row_height_envelope + $bottom;  # absolute distance from edge
+    if( $height_rem > $max_y ) {
       # increase vertical envelope and reset everything to re-do entire row
-      $max_h = $height_rem;
+      $max_y = $height_rem;
       @row_layout = ();
       @{ $cats } =  @{ $called_with_cats };
       $col_count = 0;
       next COL;
     } else {
       push @row_layout, 
-        [$cat_id, $x, $y, $height_rem, $width_px];
+        [$cat_id, $x, $y, $width_px, $height_rem];
+
       $bottom = $y + $height_rem;
       $y = $bottom + $y_gutter; 
     }
 
+    # max width of cat rectangles in this column
     my $max_width_px = $width_px;
 
-    # continue adding cats below, stop just before the bottom exceeds
-    # available envelope
+    # add cats below that one, stop just before we exceed the row height
   CAT:
-    while ( $bottom <= $max_h ) {
+    while ( $bottom <= $max_y ) {
       my ($cat, $cat_id, $cat_name, $cat_spots, $height_rem, $width_px) =
         $self->next_cat( $cats );
 
-      if( $height_rem <= $max_h ) {
+      last CAT unless $cat_id;  
+
+      if( ($bottom + $height_rem) <= $max_y ) {
         push @row_layout, 
-          [$cat_id, $x, $y, $height_rem, $width_px];
+          [$cat_id, $x, $y, $width_px, $height_rem];
         $bottom = $y + $height_rem;
         $y = $bottom + $y_gutter; 
       } else {
         unshift( @{ $cats }, $cat ); # put the unused cat back
-        last COL;
+        last CAT;
       }
-
       if ($width_px > $max_width_px) {
         $max_width_px = $width_px;
       }
     }
 
     $col_count++;
+    # reset $y 
+    $y = $called_with_y;
     # advance x for next col of cats
     $x += $max_width_px + $x_gutter;
   }
-
-  return ( \@row_layout, $max_h );
+  # $self->farewell("\n========");
+  return ( \@row_layout, $max_y, $x );
 }
 
 
@@ -421,6 +445,7 @@ Example usage:
 sub next_cat {
   my $self = shift;
   my $cats = shift;
+  # $self->dbg("cat_count: " . scalar( @{ $cats } ) );
   my ( $cat, $cat_id, $cat_name, $cat_spots, $height_in_lines );
   do{{
     $cat = shift @{ $cats }; 
@@ -433,7 +458,7 @@ sub next_cat {
 
   my ($height_rem, $width_px) =
     $self->cat_dimensions( $height_in_lines, $width_chars );
-
+  # $self->farewell();
   return( $cat, $cat_id, $cat_name, $cat_spots, $height_rem, $width_px );
 }
 
@@ -481,18 +506,23 @@ Example usage:
   my $cat_row_height_rem =
     $self->max_height_of_next_cats( $all_cats, 8 );
 
-
 =cut
 
 sub max_height_of_next_cats {
   my $self = shift;
   my $cats = shift;
-
+  # $self->dbg("cat_count: " . scalar( @{ $cats } ) );
   # get initial size-envelope from upcoming cats
   my $cat_row_height = 0;  # number of lines
-  for( my $i=0; ($i<7 || $i<$#{ $cats }); $i++) { 
+
+  my $horizon = 7;
+  if( $#{ $cats } < $horizon ) {
+    $horizon = $#{ $cats };
+  }
+
+  for( my $i=0; $i<$horizon; $i++ ) { 
     my $cat = $cats->[$i];
-    my $cat_id = $cat->{ cat_id };
+    my $cat_id = $cat->{ id };
     my ($cat_spots, $spot_count) = $self->lookup_cat( $cat_id ); 
     if( $spot_count > $cat_row_height ) {
       $cat_row_height = $spot_count;
@@ -500,7 +530,7 @@ sub max_height_of_next_cats {
   }
   my $cat_row_height_rem = 
     ( $self->cat_dimensions($cat_row_height, 1) )[0];
-
+  # $self->farewell();
   return $cat_row_height_rem;
 }
 
@@ -586,9 +616,9 @@ sub cat_dimensions {
   my $horizontal_scale   = $self->horizontal_scale;   # 9 px per char 
   my $horizontal_padding = $self->horizontal_padding; #   maybe 2 pxb
 
-  my $height =   $spot_count * $vertical_scale   + $vertical_padding;
+  my $height_raw =   $spot_count * $vertical_scale   + $vertical_padding;
+  my $height = sprintf( "%.1f", $height_raw );
   my $width  =  int( $max_chars  * $horizontal_scale + $horizontal_padding ); 
-
   return ($height, $width);
 }
 
@@ -605,6 +635,7 @@ sub generate_layout_by_size {
   my $cats_per_row = $self->cats_per_row;
 
   my $all_cats = $self->list_all_cats('by_size'); 
+
   my ($cat_count, $max_h) = (0, 0);
   # for each category rectpara
  CAT: 
@@ -1047,6 +1078,7 @@ sub html_header {
   my $heading = '';
 
   my $css_file = $self->css_file || 'mah_moz_ohm.css';
+  ### TODO really, want a relative path to this file from the html file
 
   my $html = <<"__END_HTML_HEAD";
 <!DOCTYPE html>
@@ -1183,6 +1215,53 @@ sub html_container_footer {
   my $html = qq{</div> <!-- end container -->};
 
   return $html;
+}
+
+
+=back 
+
+=head3 debuggery
+
+=over 
+
+
+=item dbg
+
+=cut
+
+sub dbg {
+  my $self = shift;
+  my $msg     = shift;  # describing/sampling args 
+  my $package = ( caller(1) )[0];
+  my $sub     = ( caller(1) )[3];
+
+  (my $just_sub = $sub) =~ s/^ $package :://x;
+
+  my $output  = "$just_sub";
+  $output .= " with $msg" if $msg;
+
+  # $output .= " $package";
+  print STDERR "$output\n";
+}
+
+
+
+=item farewell
+
+=cut
+
+sub farewell {
+  my $self = shift;
+  my $msg  = shift;
+
+  my $package = ( caller(1) )[0];
+  my $sub     = ( caller(1) )[3];
+
+  (my $just_sub = $sub) =~ s/^ $package :://x;
+
+  my $output  = "    $just_sub";
+  $output .= "  with $msg" if $msg;
+  print STDERR "$output\n";
 }
 
 

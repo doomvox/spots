@@ -53,6 +53,7 @@ GetOptions ("d|debug"    => \$DEBUG,
 #           "file=s"   => \$file,          # string
 
 # $DB::single = 1;
+# b Spots::HomePage::generate_layout_for_row
 
 use FindBin qw($Bin);
 use lib ("$Bin/../lib/");
@@ -60,7 +61,8 @@ use Spots::HomePage;
 
 # TODO rethink:
 my $base             = shift || "mah_moz";
-my $output_directory = shift || cwd();
+# my $output_directory = shift || cwd();  # First re-think: I hate pwd as default
+my $output_directory = shift || "/home/doom/End/Cave/Spots/Output/Three"; # temporary
 
 my $obj = Spots::HomePage->new(
                                output_basename  => $base,
@@ -73,7 +75,8 @@ my $obj = Spots::HomePage->new(
 # # wipe the coordinate columns in the layout table
 # $obj->clear_layout;
 
-my $style   = "metacats";
+# my $style   = "metacats";
+my $style   = "metacats_doublezig";
 $obj->generate_layout( $style );
 
 $obj->html_css_from_layout();

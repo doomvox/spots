@@ -1,6 +1,9 @@
 # Perl test file, can be run like so:
-#   perl 03-Spots-HomePage-generate_layout.t
+#   perl 13-Spots-HomePage-generate_layout-metacats.t
 #          doom@kzsu.stanford.edu     2019/03/27 15:29:51
+
+# Variant of: 03-Spots-HomePage-generate_layout.t
+#             to test the new 'metacats' layout style
 
 use 5.10.0;
 use warnings;
@@ -26,10 +29,14 @@ BEGIN {
 
 ok(1, "Traditional: If we made it this far, we're ok.");
 
-# $DB::single = 1;
+{ no warnings 'once';
+  $DB::single = 1;
+}
+# b Spots::HomePage::generate_layout
 
 {  my $subname = "generate_layout";
-   my $test_name = "Testing $subname";
+   my $style   = "metacats_doublezig";
+   my $test_name = "Testing $subname with $style";
 
    my $base = "t03";
    my $output_directory = "$Bin/dat/$base";
@@ -44,7 +51,7 @@ ok(1, "Traditional: If we made it this far, we're ok.");
    # wipe the coordinate columns in the layout table
    $obj->clear_layout;
 
-   $obj->generate_layout;
+   $obj->generate_layout( $style );
 
    # check coordinate cols: loaded with expected data?
    my $cat_id = 33;
@@ -54,14 +61,15 @@ ok(1, "Traditional: If we made it this far, we're ok.");
 #    say STDERR "cat_spots: ", Dumper($cat_spots), "\n";
 #    say STDERR "spot_count: $spot_count, x: $x, y: $y, w: $w, h: $h";
 
-   # spot_count: 11, x: 5, y: 45, w: 108, h: 13
+   # spot_count: 11, x: 5, y: 46, w: 108, h: 13
    my $cnt_33 = 11;
    is( $spot_count, $cnt_33, "$test_name: count of spots in $cat_id is $cnt_33" );
-   is( $x, 5,  "$test_name: x coord of $cat_id" );
-   is( $y, 45, "$test_name: y coord of $cat_id" );
 
-   is( $w, 108, "$test_name: width of $cat_id" );
-   is( $h,  13, "$test_name: height of $cat_id" );
+## TODO verify that these numbers seem sensible (just freezing results)
+   is( $x, 521,  "$test_name: x coord of $cat_id" );  
+   is( $y, 29, "$test_name: y coord of $cat_id" );
+   is( $w, 110, "$test_name: width of $cat_id" );
+   is( $h,  14, "$test_name: height of $cat_id" );
 
    my $label = 'bale';
    my $detected_label = any{ $_->{ label } eq $label } @{ $cat_spots };
