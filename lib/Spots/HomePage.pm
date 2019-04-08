@@ -12,9 +12,8 @@ Version 0.01
 
 =cut
 
-# TODO revise these before shipping
-our $VERSION = '0.01';
-my $DEBUG = 1;
+our $VERSION = '0.01';   # TODO revise before shipping
+my $DEBUG = 1; # (unused, at present)
 
 =head1 SYNOPSIS
 
@@ -64,6 +63,7 @@ use Fatal           qw( open close mkpath copy move );
 use Cwd             qw( cwd abs_path );
 use Env             qw( HOME );
 use List::MoreUtils qw( any );
+use File::Spec;     # abs2rel
 
 use DBI;
 
@@ -72,13 +72,46 @@ use DBI;
 Creates a new Spots::HomePage object.
 
 Takes a hashref as an argument, with named fields identical
-to the names of the object attributes. These attributes are:
+to the names of the object attributes. Some of these attributes are:
 
 =over
 
-=item <TODO fill-in attributes here... most likely, sort in order of utility>
+=item output_basename  
 
-=item 
+The name (sans extension) of the output html and css files                                   
+
+=item output_directory
+
+The location the html and css files will be written
+
+=item html_file  
+
+Name (with path) of output html file, to override the above
+output_* settings.
+
+=item css_file
+
+Name (with path) of output css file, to override the output_*
+settings.
+
+=item db_database_name 
+
+The db DATABASE name: either 'spots' (the default) or 'spots_test'
+
+=item cats_per_row
+
+Roughly, the number of columns of category rectangles used by
+some layout styles.
+
+=item color_scheme
+
+Either 'live' or 'dev'.  The 'live' scheme is light on black. 
+The 'dev' scheme has brightly colored boxes to see where things are easily.
+
+=item layout_style
+
+Default is the (usually) the latest, as of this writing: 'metacats_doublezig'.
+For others, see L<generate_layout>.  Under development: 'metacats_fanout'
 
 =back
 
@@ -113,13 +146,15 @@ has css_file         => (is => 'rw', isa => Str, lazy => 1,
                          builder => 'builder_css_file' );
 
 # horizontal distance in px between category "rectpara"s
-has x_gutter          => (is => 'rw', isa => Int, default=>4 );
-has y_gutter => (is => 'rw', isa => Int, default=>1 ); # 1 rem
-has cats_per_row    => (is => 'rw', isa => Int, default=>7 );
+has x_gutter       => (is => 'rw', isa => Int, default=>4 );
+has y_gutter       => (is => 'rw', isa => Int, default=>1 ); # 1 rem
+has cats_per_row   => (is => 'rw', isa => Int, default=>7 );
 
 has color_scheme => (is => 'rw', isa => Str, default => 'live' ); # or 'dev'
 
-# The way I'd like Moo to work:
+has layout_style => (is => 'rw', isa => Str, default => 'metacats_doublezig' ); 
+
+# The way I'd like Moo to work is with class names acting as types:
 #   has dbh              
 #     => (is => 'rw', isa => 'DBI::db',  lazy => 1,
 #           builder => 'builder_db_connection' );
@@ -224,12 +259,94 @@ sub builder_prep_sth_sql_cat_size {
 
 
 
+=back
+
+=head2 geometry
+
+=over 
+
+
+=item rectangles_intersect
+
+
+Example usage:
+
+   $self->rectangles_intersect( $x1, $y1, $x2, $y2 );
+
+=cut
+
+sub rectangles_intersect {
+  my $self = shift;
+  my $x1 = shift;
+  my $y1 = shift;
+  my $x2 = shift;
+  my $y2 = shift;
+
+# TODO BOOKMARK
+
+
+
+
+}
+
+
+
+
 
 =back
 
-=head2 routines to do, like, stuff
+=head2 layout generation
+
+Determine placement of cats, writing x, y, width, and height
+the the layout table. 
 
 =over 
+
+
+
+=item cat_size_to_layout
+
+Given a ref to an array of cats (i.e. an array of hrefs with keys
+cat_id and cat_name); determine the height (in rem) and width (in
+px) of each cat, and write to the layout table.
+
+=cut
+
+sub cat_size_to_layout {
+  my $self = shift;
+  my $cats = shift || $self->list_all_cats(); 
+  my $cat_count = scalar( @{ $cats } );
+  # $self->dbg("cat_count: $cat_count");
+
+  my $popcat = 0; # count of populated cats, i.e. ones with spots
+ CAT:
+  foreach my $cat ( @{ $cats } ) { 
+    my $cat_id   = $cat->{ id };
+    my $cat_name = $cat->{ name };
+    my ($cat_spots, $height_in_lines) = $self->lookup_cat( $cat_id );  
+    next CAT if not $cat_spots; # skip empty category
+    $popcat++;
+    my $width_chars = $self->cat_width( $cat_spots );
+    my ($height_rem, $width_px) =
+      $self->cat_dimensions( $height_in_lines, $width_chars );
+    $self->update_height_width_of_cat( $cat_id, $width_px, $height_rem );
+  }
+
+  if( $popcat < $cat_count ) {
+    my $empties = $cat_count - $popcat;
+    warn "There are $empties cats without spots.";
+  }
+  
+  # $self->farewell();
+  return $popcat;
+}
+
+
+
+
+
+
+
 
 =item generate_layout
 
@@ -244,12 +361,15 @@ Takes one optional argument, a string to specify a layout style.
              - like metacats with layout with an additional top-to-bottom
                zig-zag inside the usual T-to-B/L-to-R.
 
+  'metacats_fanout'
+             - start in corner, move outwards, uses collision detection.
+          
 
 =cut
 
 sub generate_layout {
   my $self = shift;
-  my $style = shift || 'by_size'; 
+  my $style = shift || $self->layout_style;
   # $self->dbg("style: $style");
 
   my $method = "generate_layout_$style";
@@ -257,6 +377,46 @@ sub generate_layout {
   # $self->farewell();
   return $ret;
 }
+
+
+
+=item generate_layout_metacats_fanout
+
+TODO roughly: start in the upper left corner, and move outwards
+from there, in "random" directions, using a collision detection
+routine to tighten up placement.
+
+Really the "random" directions should just *look* random: actually
+they should probably be determined and fixed for the given input 
+(facillitate testing).  
+
+(E.g. use first char of category name in a lookup table.)
+
+=cut
+
+sub generate_layout_metacats_fanout {
+  my $self = shift;
+  my $cats = shift || $self->list_all_cats(); 
+  my $cat_count = scalar( @{ $cats } );
+  # $self->dbg("cat_count: $cat_count");
+  my ($x, $y) = ($self->initial_x, $self->initial_y);
+
+ CAT:
+  foreach my $cat ( @{ $cats } ) { 
+    my $cat_id   = $cat->{ id };
+    my $cat_name = $cat->{ name };
+    my ($cat_spots, $height_in_lines) = $self->lookup_cat( $cat_id );  
+    next CAT if not $cat_spots; # skip empty category
+
+### TODO BOOKMARK
+
+
+
+
+  }
+
+}
+
 
 
 =item generate_layout_metacats_doublezig 
@@ -278,7 +438,7 @@ sub generate_layout_metacats_doublezig {
     }
     $x = $self->initial_x;           # px 
     $y = $max_y + $self->y_gutter;   # rem
-    say STDERR  "x: $x, y: $y"
+#    say STDERR  "x: $x, y: $y"
   }
   # $self->farewell();
 }
@@ -676,7 +836,11 @@ sub generate_layout_by_size {
 }
 
 
+=back 
 
+=head2 output 
+
+=over
 
 =item html_css_from_layout
 
@@ -779,7 +943,8 @@ Return an array of hrefs keyed like:
 
 sub list_all_cats {
   my $self = shift;
-  my $style = shift || 'by_size';
+#  my $style = shift || 'by_size';
+  my $style = shift || $self->layout_style;
   my $dbh = $self->dbh;
 
   my $sql = $self->sql_for_all_cats( $style );
@@ -870,6 +1035,55 @@ sub update_layout_for_cat {
   return $rows_affected;
 }
 
+
+=item update_height_width_of_cat
+
+Store the layout information for a particular cat.
+
+Example usage:
+
+  $self->update_height_width_of_cat( $cat_id, $width, $height );
+
+=cut
+
+sub update_height_width_of_cat {
+  my $self   = shift;
+  my $cat_id = shift;
+  my $width  = shift;
+  my $height = shift;
+
+  my $sql_update = $self->sql_to_update_height_width();
+  my $dbh = $self->dbh;
+  my $sth = $self->prepare( $sql_update );  # TODO stash prepared sth (maybe)
+  $sth->execute( $cat_id, $width, $height );
+  return;
+}
+
+=item update_x_y_of_cat
+
+Store the layout information for a particular cat.
+
+Example usage:
+
+  $self->update_x_y_of_cat( $cat_id, $width, $height );
+
+=cut
+
+sub update_x_y_of_cat {
+  my $self   = shift;
+  my $cat_id = shift;
+  my $x      = shift;
+  my $y      = shift;
+
+  my $sql_update = $self->sql_to_update_x_y();
+  my $dbh = $self->dbh;
+  my $sth = $self->prepare( $sql_update );  # TODO stash prepared sth (maybe)
+  $sth->execute( $cat_id, $x, $y );
+  return;
+}
+
+
+
 =item maximum_height_and_width_of_layout
 
 Determine the height (rem) and width (px) of the layout.
@@ -912,10 +1126,11 @@ they contain, sorted in order of biggest to smallest.
 
 sub sql_for_all_cats {
   my $self = shift;
-  my $style = shift || 'by_size';
+#  my $style = shift || 'by_size';
+  my $style = shift || $self->layout_style;
 
   # use the same sql for the variant style
-  if( $style eq 'metacats_doublezig' ) {
+  if( $style eq 'metacats_doublezig' || $style eq 'metacats_fanout' ) {
     $style = 'metacats';
   }
 
@@ -994,15 +1209,17 @@ sub sql_for_cat_size {
 
 # TODO Q: why string interpolation rather than bind params?
 
-# TODO do an upsert instead of a simple update?
-# 
+# TODO doing an upsert would require a uniqueness contraint on category:
+
 #   my $update_sql = 
 #   qq{ INSERT INTO layout (category, x_location, y_location) 
 #       VALUES ($cat_id, $x, $y) 
 #       ON CONFLICT (category) 
 #       DO 
 #         UPDATE
-#           SET x=$x, y = $y; };
+#           SET x_location=$x, y_location=$y; };
+
+##  DBD::Pg::db do failed: ERROR:  there is no unique or exclusion constraint matching the ON CONFLICT specification at /home/doom/End/Cave/Spots/Wall/Spots/t/../lib/Spots/HomePage.pm line 867.
 
 sub sql_to_update_layout {
   my $self       = shift;
@@ -1016,9 +1233,38 @@ sub sql_to_update_layout {
     qq{UPDATE layout } .
     qq{SET x_location=$x, y_location=$y, width=$width, height=$height } .
     qq{   WHERE category = $cat_id };
-
   return $update_sql;
 }
+
+=item sql_to_update_height_width
+
+  my $sql_update = $self->sql_to_update_height_width()
+
+=cut
+
+sub sql_to_update_height_width {
+  my $self       = shift;
+  my $update_sql =<<"__END_SKULL_UHW"
+    UPDATE layout SET width=?, height=? WHERE category = ?
+__END_SKULL_UHW
+  return $update_sql;
+}
+
+=item sql_to_update_x_y
+
+  my $sql_update = $self->sql_to_update_x_y()
+
+=cut
+
+sub sql_to_update_x_y {
+  my $self       = shift;
+  my $update_sql =<<"__END_SKULL_UHW"
+    UPDATE layout SET x=?, y=? WHERE category = ?
+__END_SKULL_UHW
+  return $update_sql;
+}
+
+
 
 =item clear_layout
 
@@ -1107,7 +1353,8 @@ sub html_header {
   my $heading = '';
 
   my $css_file = $self->css_file || 'mah_moz_ohm.css';
-  ### TODO really, want a relative path to this file from the html file
+  my $html_file = $self->html_file;
+  my $css_rel = File::Spec->abs2rel( $css_file, dirname( $html_file ) );
 
   my $html = <<"__END_HTML_HEAD";
 <!DOCTYPE html>
@@ -1116,7 +1363,7 @@ sub html_header {
 <meta charset="utf-8">
 $heading
 <meta name="author" content="Joseph Brenner">
-<link rel="stylesheet" type="text/css" href="$css_file">
+<link rel="stylesheet" type="text/css" href="$css_rel">
 </head>
 
 <body>

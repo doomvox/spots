@@ -19,7 +19,9 @@ use List::MoreUtils qw( any );
 use Test::More;
 
 BEGIN {
-  use_ok( 'Spots::Rectangle' )
+  use FindBin qw($Bin);
+  use lib ("$Bin/../lib/");
+  use_ok( 'Spots::Rectangle' , )
 }
 
 ok(1, "Traditional: If we made it this far, we're ok.");
@@ -27,12 +29,28 @@ ok(1, "Traditional: If we made it this far, we're ok.");
 { no warnings 'once';
   $DB::single = 1;
 }
-# Insert your test code below.  Consult perldoc Test::More for help.
 
 {  my $subname = "coords";
+   my $class_exp = "Spots::Rectangle";
    my $test_name = "Testing $subname";
 
-    
+   my $x1_exp = 3;
+   my $y1_exp = 13;
+   my $x2_exp = 6;
+   my $y2_exp = 16;
+
+   my $coords_exp = [ $x1_exp, $y1_exp, $x2_exp, $y2_exp ];
+   my $obj = $class_exp->new( coords => $coords_exp );
+
+   my $x1 = $obj->x1;
+   is( $x1, $x1_exp, "$test_name: x1 accessor" );
+   
+   my $y1 = $obj->y1;
+   is( $y1, $y1_exp, "$test_name: y1 accessor" );
+
+   my $coords = $obj->coords();
+   is_deeply( $coords, $coords_exp, "$test_name: coords accessor" );
+
  }
 
 done_testing();

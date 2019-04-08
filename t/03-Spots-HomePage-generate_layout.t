@@ -39,6 +39,7 @@ ok(1, "Traditional: If we made it this far, we're ok.");
                                    output_directory => $output_directory,
                                    db_database_name => 'spots_test',
 #                                   db_database_name => 'spots',
+                                   layout_style => 'by_size',
                                   );
 
    # wipe the coordinate columns in the layout table

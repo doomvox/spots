@@ -60,9 +60,12 @@ use lib ("$Bin/../lib/");
 use Spots::HomePage; 
 
 # TODO rethink:
-my $base             = shift || "mah_moz";
+my $base             = shift || "mah_moz_ohm";
 # my $output_directory = shift || cwd();  # First re-think: I hate pwd as default
-my $output_directory = shift || "/home/doom/End/Cave/Spots/Output/Three"; # temporary
+# my $output_directory = shift || "/home/doom/End/Cave/Spots/Output/Three"; # temporary
+
+my $output_directory = "$HOME/End/Stage/Rook/spots";
+
 
 my $obj = Spots::HomePage->new(
                                output_basename  => $base,
