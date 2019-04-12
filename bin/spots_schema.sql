@@ -65,11 +65,11 @@ CREATE TABLE metacat (
 
 CREATE TABLE layout (
        id           SERIAL PRIMARY KEY NOT NULL,
-       category  INTEGER,
+       category    INTEGER,
        x_location  INTEGER,
        y_location  INTEGER,
-       height      INTEGER,
-       width       INTEGER
+       height      NUMERIC,  -- in rem:  
+       width       INTEGER   -- in px
 );
 
 CREATE TABLE projects (

@@ -76,7 +76,8 @@ ok(1, "Traditional: If we made it this far, we're ok.");
 #   is( $w, 108, "$test_name: width of $cat_id" );
    is( $w, 110, "$test_name: width of $cat_id" );
 #   is( $h,  13, "$test_name: height of $cat_id" );
-   is( $h,  14, "$test_name: height of $cat_id" );
+#   is( $h,  14, "$test_name: height of $cat_id" );
+   is( $h,  13.5, "$test_name: height of $cat_id" );
 
    my $label = 'bale';
    my $detected_label = any{ $_->{ label } eq $label } @{ $cat_spots };

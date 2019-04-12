@@ -52,8 +52,8 @@ GetOptions ("d|debug"    => \$DEBUG,
 #           "length=i" => \$length,        # numeric
 #           "file=s"   => \$file,          # string
 
-# $DB::single = 1;
-# b Spots::HomePage::generate_layout_for_row
+{ no warnings 'once'; $DB::single = 1; }
+# use Spots::HomePage; b Spots::HomePage::generate_layout_metacats_fanout
 
 use FindBin qw($Bin);
 use lib ("$Bin/../lib/");
@@ -62,15 +62,21 @@ use Spots::HomePage;
 # TODO rethink:
 my $base             = shift || "mah_moz_ohm";
 # my $output_directory = shift || cwd();  # First re-think: I hate pwd as default
-# my $output_directory = shift || "/home/doom/End/Cave/Spots/Output/Three"; # temporary
+my $output_directory = shift || "/home/doom/End/Cave/Spots/Output/Foursies"; # temporary
 
-my $output_directory = "$HOME/End/Stage/Rook/spots";
+mkpath( $output_directory ) unless -d $output_directory;
+
+
+# Ultimately:
+# my $output_directory = "$HOME/End/Stage/Rook/spots";
 
 
 my $obj = Spots::HomePage->new(
                                output_basename  => $base,
                                output_directory => $output_directory,
                                db_database_name => 'spots',
+#                               layout_style     => 'metacats_doublezig',
+#                               layout_style     => 'metacats_fanout',
                               );
 
 
@@ -78,8 +84,14 @@ my $obj = Spots::HomePage->new(
 # # wipe the coordinate columns in the layout table
 # $obj->clear_layout;
 
-# my $style   = "metacats";
-my $style   = "metacats_doublezig";
+my $style;
+#  $style   = "metacats";
+#  $style   = "metacats_doublezig";
+$style     = 'metacats_fanout',
+
+$DB::single = 1;
+# b Spots::HomePage::generate_layout_for_row
+
 $obj->generate_layout( $style );
 
 $obj->html_css_from_layout();

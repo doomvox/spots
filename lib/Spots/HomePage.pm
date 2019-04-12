@@ -67,6 +67,8 @@ use File::Spec;     # abs2rel
 
 use DBI;
 
+use Spots::Rectangle;
+
 =item new
 
 Creates a new Spots::HomePage object.
@@ -150,7 +152,8 @@ has x_gutter       => (is => 'rw', isa => Int, default=>4 );
 has y_gutter       => (is => 'rw', isa => Int, default=>1 ); # 1 rem
 has cats_per_row   => (is => 'rw', isa => Int, default=>7 );
 
-has color_scheme => (is => 'rw', isa => Str, default => 'live' ); # or 'dev'
+# has color_scheme => (is => 'rw', isa => Str, default => 'live' ); # or 'dev'
+has color_scheme => (is => 'rw', isa => Str, default => 'dev' ); 
 
 has layout_style => (is => 'rw', isa => Str, default => 'metacats_doublezig' ); 
 
@@ -258,41 +261,6 @@ sub builder_prep_sth_sql_cat_size {
 }
 
 
-
-=back
-
-=head2 geometry
-
-=over 
-
-
-=item rectangles_intersect
-
-
-Example usage:
-
-   $self->rectangles_intersect( $x1, $y1, $x2, $y2 );
-
-=cut
-
-sub rectangles_intersect {
-  my $self = shift;
-  my $x1 = shift;
-  my $y1 = shift;
-  my $x2 = shift;
-  my $y2 = shift;
-
-# TODO BOOKMARK
-
-
-
-
-}
-
-
-
-
-
 =back
 
 =head2 layout generation
@@ -370,11 +338,11 @@ Takes one optional argument, a string to specify a layout style.
 sub generate_layout {
   my $self = shift;
   my $style = shift || $self->layout_style;
-  # $self->dbg("style: $style");
+  $self->dbg("style: $style");
 
   my $method = "generate_layout_$style";
   my $ret = $self->$method;
-  # $self->farewell();
+  $self->farewell();
   return $ret;
 }
 
@@ -398,24 +366,135 @@ sub generate_layout_metacats_fanout {
   my $self = shift;
   my $cats = shift || $self->list_all_cats(); 
   my $cat_count = scalar( @{ $cats } );
-  # $self->dbg("cat_count: $cat_count");
-  my ($x, $y) = ($self->initial_x, $self->initial_y);
-
+  $self->dbg("cat_count: $cat_count");
+  my @placed;
+  my $first = 1;
  CAT:
   foreach my $cat ( @{ $cats } ) { 
     my $cat_id   = $cat->{ id };
     my $cat_name = $cat->{ name };
-    my ($cat_spots, $height_in_lines) = $self->lookup_cat( $cat_id );  
+
+    my $cat_spots = $self->fill_in_cat( $cat );   # add data to the $cat
+
     next CAT if not $cat_spots; # skip empty category
 
-### TODO BOOKMARK
+    my ($w, $h) = ( $cat->{ width }, $cat->{ height } );
+
+    my ($x, $y);
+    if( $first ) {
+      ($x, $y) = ($self->initial_x, $self->initial_y);
+      $first = 0;
+    } else {
+      # pick location for cat, avoid collision with anything in @placed,
+      # then stash cat in "placed" data structure
+      ($x, $y) = $self->place_cat( $cat, \@placed );
+    }
+    say STDERR "about to upd: x: $x, y: $y";
+    # save x,y values to database
+    $self->update_x_y_of_cat( $cat_id, $x, $y );
+  }
+  say STDERR "place_cats have placed: " . scalar( @placed ) . "\n" .  Dumper( \@placed );
+  $self->farewell();
+  # return $ret;  # TODO
+}
 
 
 
+=item place_cat
 
+pick location for cat, avoid collision with anything in placed.
+also stash cat in "placed" data structure
+
+Example usage:
+
+      ($x, $y) = $self->place_cat( $cat, \@placed );
+
+=cut
+
+sub place_cat {
+  my $self = shift;
+  my $cat    = shift;
+  my $placed = shift;  # array of rectangles
+  my $dirction    = shift || '';
+
+  # default direction to move from cat_name (first half alpha goes right, second goes down)
+  my $cat_name = $cat->{ name };
+  my $first_char = substr( $cat_name, 0, 1);
+
+# #  $dirction = 'h'; # TODO DEBUG
+#   $dirction = 'v'; # TODO DEBUG
+
+  unless( $dirction ) { 
+    if ($first_char lt 'm' ) {
+      $dirction = 'h';
+    } else {
+      $dirction = 'v';
+    }
   }
 
+  my ($x_init, $y_init) = ($self->initial_x, $self->initial_y);
+
+  # TODO tangled thinking about initially placing the first rect.
+  #      just pull the first one off and do it, right?  
+
+  # (Here, I'm trying to generate a bogus last_rect without actually 
+  # placing it, so there's an open space in the first spot...)
+
+  # choose a place to begin, a possible $x1, $y1 
+  my $last_rect = $placed->[ -1 ];
+
+  my ($x1, $y1, $x2, $y2);
+  if ( $last_rect ) { 
+    $x1 = $last_rect->x1;
+    $y1 = $last_rect->y1;
+    $x2 = $last_rect->x2;
+    $y2 = $last_rect->y2;
+  } else {
+    ($x1, $y1, $x2, $y2) = ($x_init, $y_init, $x_init, $y_init);
+  }
+
+  # start at the far edge of the last rectangle
+  if( $dirction eq 'h' ) {  # horizontal
+    $x1 = $x2;
+  } elsif( $dirction eq 'v') {  # vertical
+    $y1 = $y2;
+  }
+
+  # try out this position (xy pair) against existing placed rects
+  # if there's a collison, keep moving in the direction $dirction
+  my $new_rect;
+ RECT:
+  while( 1 ) { 
+    my $x2 = $x1 + $cat->{ width  };
+    my $y2 = $y1 + $cat->{ height };
+    my $rect = Spots::Rectangle->new({ coords => [ $x1, $y1, $x2, $y2 ] });  
+
+#    my $clear = 1;
+  POS: 
+    foreach my $prev_rect ( @{ $placed } ) {
+      if ( $rect->is_overlapping( $prev_rect ) ) {  
+#        $clear = 0;
+        if ( $dirction eq 'h' ) {    # horizontal
+          $x1++;
+        } elsif ( $dirction eq 'v') { # vertical
+          $y1++;
+        }
+        next POS;
+      } 
+    }
+    # If we've made it to here, we're clear
+    $new_rect = $rect;
+    last RECT;
+  }
+  
+  # after a rect passes, stash it in placed...
+  push @{ $placed }, $new_rect;
+
+  #  newly choosen x,y vals added to the $cat as well as returned
+  ( $cat->{x_location}, $cat->{y_location} ) = ($x1, $y1);
+  return ( $x1, $y1 );
 }
+
 
 
 
@@ -429,6 +508,9 @@ sub generate_layout_metacats_doublezig {
   # $self->dbg("");
 
   my $cats = $self->list_all_cats('metacats_doublezig'); 
+
+  $self->cat_size_to_layout( $cats );  # populate h & w fields
+
   while ( $cats && scalar( @{ $cats } ) ) { 
     my ( $row_layout, $max_y, $new_x ) =
       $self->generate_layout_for_row( $cats, $x, $y );  # trims $cats as they're used
@@ -734,6 +816,7 @@ sub generate_layout_metacats {
     if ( $cat_count > $cats_per_row ) {
       $cat_count = 0;
       $x = 5;
+      # note $max_h;
       say STDERR $max_h;
       $y += $max_h + 1;
       $max_h = 0;
@@ -828,6 +911,7 @@ sub generate_layout_by_size {
     if ( $cat_count > $cats_per_row ) {
       $cat_count = 0;
       $x = 5;
+      # note $max_h;
       say STDERR $max_h;
       $y += $max_h + 1;
       $max_h = 0;
@@ -974,6 +1058,54 @@ sub lookup_cat {
 
 
 
+=item fill_in_cat
+
+Given a $cat (href with field 'cat_id'), gets additional
+information about it and adds it to the $cat href.
+
+Note: if the x_location and y_location information may not 
+yet be defined yet.  
+
+Essentially, a variation of L<lookup_cat_and_size>.
+
+Example usage:
+
+    my $cat_spots = $self->fill_in_cat( $cat );   # add data to the $cat
+
+
+=cut
+
+sub fill_in_cat {
+  my $self = shift;
+  my $cat = shift;
+
+  my $sth_cat      = $self->sth_cat;
+  my $sth_cat_size = $self->sth_cat_size;  
+
+  my $cat_id = $cat->{ id };
+  $sth_cat->execute( $cat_id );
+  my $cat_spots = $sth_cat->fetchall_arrayref({});
+  my $spot_count = scalar( @{ $cat_spots } ); 
+
+  # pulling x and y from db table layout
+  $sth_cat_size->execute( $cat_id );  
+  my $cat_size = $sth_cat_size->fetchrow_hashref();
+  my $x = $cat_size->{ x_location };
+  my $y = $cat_size->{ y_location };
+  my $w = $cat_size->{ width };
+  my $h = $cat_size->{ height };
+
+  $cat->{ width }  = $w;
+  $cat->{ height } = $h;
+  $cat->{ x } = $x if $x;
+  $cat->{ y } = $y if $y;
+  $cat->{ spots } = $cat_spots;
+  $cat->{ spot_count } = $spot_count;
+
+  return $spot_count;
+}
+
+
 
 =item lookup_cat_and_size
 
@@ -1053,9 +1185,12 @@ sub update_height_width_of_cat {
   my $height = shift;
 
   my $sql_update = $self->sql_to_update_height_width();
+  # UPDATE layout SET width=?, height=? WHERE category = ?
+
   my $dbh = $self->dbh;
-  my $sth = $self->prepare( $sql_update );  # TODO stash prepared sth (maybe)
-  $sth->execute( $cat_id, $width, $height );
+
+  my $sth = $dbh->prepare( $sql_update );  # TODO stash prepared sth (maybe)
+   $sth->execute( $width, $height, $cat_id ); 
   return;
 }
 
@@ -1065,7 +1200,7 @@ Store the layout information for a particular cat.
 
 Example usage:
 
-  $self->update_x_y_of_cat( $cat_id, $width, $height );
+  $self->update_x_y_of_cat( $cat_id, $x, $y );
 
 =cut
 
@@ -1074,11 +1209,15 @@ sub update_x_y_of_cat {
   my $cat_id = shift;
   my $x      = shift;
   my $y      = shift;
+  $self->dbg("cat_id: $cat_id x: $x, y: $y");
 
   my $sql_update = $self->sql_to_update_x_y();
+  #     UPDATE layout SET x_location=?, y_location=? WHERE category = ?
   my $dbh = $self->dbh;
-  my $sth = $self->prepare( $sql_update );  # TODO stash prepared sth (maybe)
-  $sth->execute( $cat_id, $x, $y );
+  my $sth = $dbh->prepare( $sql_update );  # TODO stash prepared sth (maybe)
+  $sth->execute( $x, $y, $cat_id );
+  say STDERR "error: ", $sth->errstr if $sth->err;
+  $self->farewell();
   return;
 }
 
@@ -1244,7 +1383,7 @@ sub sql_to_update_layout {
 
 sub sql_to_update_height_width {
   my $self       = shift;
-  my $update_sql =<<"__END_SKULL_UHW"
+  my $update_sql =<<"__END_SKULL_UHW";
     UPDATE layout SET width=?, height=? WHERE category = ?
 __END_SKULL_UHW
   return $update_sql;
@@ -1258,8 +1397,8 @@ __END_SKULL_UHW
 
 sub sql_to_update_x_y {
   my $self       = shift;
-  my $update_sql =<<"__END_SKULL_UHW"
-    UPDATE layout SET x=?, y=? WHERE category = ?
+  my $update_sql =<<"__END_SKULL_UHW";
+    UPDATE layout SET x_location=?, y_location=? WHERE category = ?
 __END_SKULL_UHW
   return $update_sql;
 }
@@ -1316,12 +1455,21 @@ sub colors {
   my $black = '#000000';
   
   if ( $color_scheme eq 'dev' ) { 
+#     %colors = 
+#       (
+#        container_bg => '#99AAEE',
+#        category_bg  => '#DDFF00',
+#        footer_bg    => 'lightgray',
+#        anchor_fg    => '#003333',
+#        body_bg      => '#000000',
+#        body_fg      => '#CC33FF', 
+#       );
     %colors = 
       (
-       container_bg => '#99AAEE',
-       category_bg  => '#DDFF00',
+       container_bg => '#225588',
+       category_bg  => '#BBDD00',
        footer_bg    => 'lightgray',
-       anchor_fg    => '#003333',
+       anchor_fg    => '#001111',
        body_bg      => '#000000',
        body_fg      => '#CC33FF', 
       );

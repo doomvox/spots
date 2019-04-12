@@ -87,10 +87,6 @@ defined when object is created.
 
 =cut
 
-# Example attribute:
-# has is_loop => ( is => 'rw', isa => Int, default => 0 );
-# Tempted to use Mouse over Moo so I can do my usual "isa => 'Int'"
-
 has coords => ( is => 'ro', isa => ArrayRef, builder => sub{ [] } );  
 
 has x1 => ( is => 'ro', isa => Int, lazy => 1, builder=>'build_x1' );
@@ -124,12 +120,6 @@ sub build_y2 {
   my $coords = $self->coords;
   my $y2 =  $coords->[3];
   return $y2;
-}
-
-sub build_aref {
-  my $self = shift;
-  my $aref = [];
-  return $aref;
 }
 
 { no warnings 'once'; $DB::single = 1; }

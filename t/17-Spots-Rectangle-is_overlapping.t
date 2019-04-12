@@ -28,9 +28,7 @@ ok(1, "Traditional: If we made it this far, we're ok.");
 
 { no warnings 'once'; $DB::single = 1; }
 
-# Insert your test code below.  Consult perldoc Test::More for help.
-
-{  my $subname = "is_overlapping";
+{  my $subname   = "is_overlapping";
    my $test_name = "Testing $subname";
 
    my $r1_coords = [ 10, 10, 20, 20 ];

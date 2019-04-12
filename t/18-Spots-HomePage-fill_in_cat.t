@@ -19,7 +19,9 @@ use List::MoreUtils qw( any );
 use Test::More;
 
 BEGIN {
-  use_ok( 'Spots::HomePage' )
+  use FindBin qw($Bin);
+  use lib ("$Bin/../lib/");
+  use_ok( 'Spots::HomePage' , )
 }
 
 ok(1, "Traditional: If we made it this far, we're ok.");
@@ -31,7 +33,27 @@ ok(1, "Traditional: If we made it this far, we're ok.");
 {  my $subname = "fill_in_cat";
    my $test_name = "Testing $subname";
 
-    
+   my $obj = Spots::HomePage->new();
+
+   my $cats =  $obj->list_all_cats(); 
+
+   my $cat = $cats->[0];
+
+   $obj->fill_in_cat( $cat );
+
+#    say Dumper( $cat );
+
+   my $height = $cat->{ height };
+   my $width = $cat->{ width };
+
+   my ($height_expected, $width_expected ) =  (9, 83);
+   is ($height, $height_expected, "$test_name: height" );
+   is ($width, $width_expected, "$test_name: width" );
+
+   my $spot_count = $cat->{ spot_count };
+   my $expected_spot_count = 7;
+   is( $spot_count, $expected_spot_count, "$test_name: spot_count" );
+   
  }
 
 done_testing();
