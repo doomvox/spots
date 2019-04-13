@@ -287,7 +287,7 @@ sub cat_size_to_layout {
   my $self = shift;
   my $cats = shift || $self->list_all_cats(); 
   my $cat_count = scalar( @{ $cats } );
-  # $self->dbg("cat_count: $cat_count");
+  # $self->hello_sub("cat_count: $cat_count");
 
   my $popcat = 0; # count of populated cats, i.e. ones with spots
  CAT:
@@ -334,7 +334,7 @@ Takes one optional argument, a string to specify a layout style.
 sub generate_layout {
   my $self = shift;
   my $style = shift || $self->layout_style;
-  $self->dbg("style: $style");
+  $self->hello_sub("style: $style");
 
   my $method = "generate_layout_$style";
   my $ret = $self->$method;
@@ -361,7 +361,7 @@ sub generate_layout_metacats_fanout {
   my $self = shift;
   my $cats = shift || $self->list_all_cats(); 
   my $cat_count = scalar( @{ $cats } );
-  $self->dbg("cat_count: $cat_count");
+  $self->hello_sub("cat_count: $cat_count");
   my ($x1, $y1) = ($self->initial_x, $self->initial_y);
   $self->placed( [] );  # TODO is that the right way to clear it? 
   my $placed = $self->placed;
@@ -504,7 +504,79 @@ sub find_place_for_cat {
   my $placed     = shift || $self->placed;  # aref of rectangles
 
   my $cat_name = $cat->{ name };
-  $self->dbg("cat: " . $cat->{id} . ' ' . $cat_name);
+  $self->hello_sub("cat: " . $cat->{id} . ' ' . $cat_name);
+
+  # start with the last "placed" rectangle (will pick a place near it)
+  my $lr = $placed->[ -1 ];  # the "last rectangle"
+
+  my ($x1, $y1, $x2, $y2) =
+    ($lr->x1, $lr->y1, $lr->x2, $lr->y2);
+
+  my ($width, $height) = ( $cat->{ width }, $cat->{ height } );
+
+  my @candidates;
+  push @candidates, $self->sweep_in_direction_for_open_space( $cat, 'e', $x2,          $y1);
+  push @candidates, $self->sweep_in_direction_for_open_space( $cat, 's', $x1,          $y2);
+  push @candidates, $self->sweep_in_direction_for_open_space( $cat, 'w', ($x1-$width), $y1);
+  push @candidates, $self->sweep_in_direction_for_open_space( $cat, 'n', $x1,          ($y1-$height));
+
+  my $param;
+  my $new_rect = shift @candidates; 
+
+  my $min = $self->ungoodness( $lr, $new_rect );  
+
+ CANDY:
+  foreach my $candy ( @candidates ) {
+    next CANDY unless $candy;
+    $param = $self->ungoodness( $lr, $candy );
+    if ( $min > $param ) {
+      $min = $param;
+      $new_rect = $candy;
+    }
+  }
+
+  ($x1, $y1) = ($new_rect->x1, $new_rect->y1);
+  $self->farewell();
+  return ( $x1, $y1 );
+}
+
+
+=item ungoodness
+
+Compute an "ungoodness" parameter for an association between two
+rectangles (Spots::Rectangle objects).  A "good" association is
+one that makes sense when doing a graphical layout.  At present,
+"ungoodness" is just the geometric center-to-center distance
+between the rectangles-- the smaller the better.
+
+Example use:
+
+ $param = 
+   $self->ungoodness($last_rectangle, $candidate_rectangle);
+
+=cut
+
+# TODO may need more information than just geometry, which means I need
+# some enhanced data structure... a catangle?  Maybe: add a "meta" 
+# stash to the Rectangle object, so I can tag it with e.g. a cat_id.  
+sub ungoodness {
+  my $self = shift;
+  my $r1 = shift;
+  my $r2 = shift;
+  my $dist = $r1->distance( $r2 );
+  return $dist;
+}
+
+
+
+
+sub find_place_for_cat_just_h_v {
+  my $self       = shift;
+  my $cat        = shift;
+  my $placed     = shift || $self->placed;  # aref of rectangles
+
+  my $cat_name = $cat->{ name };
+  $self->hello_sub("cat: " . $cat->{id} . ' ' . $cat_name);
 
   # start with the last "placed" rectangle (will pick a place near it)
   my $last_rect = $placed->[ -1 ];
@@ -512,10 +584,10 @@ sub find_place_for_cat {
     ($last_rect->x1, $last_rect->y1, $last_rect->x2, $last_rect->y2);
 
   my $rect_h = 
-    $self->sweep_in_direction_for_open_space( $cat, $x2, $y1, 'h' );
+    $self->sweep_in_direction_for_open_space( $cat, 'h', $x2, $y1 );
 
   my $rect_v = 
-    $self->sweep_in_direction_for_open_space( $cat, $x1, $y2, 'v' );
+    $self->sweep_in_direction_for_open_space( $cat, 'v', $x1, $y2 );
 
   # get distance to either rectangle, choose the minimum
   my $new_rect;
@@ -529,7 +601,6 @@ sub find_place_for_cat {
   $self->farewell();
   return ( $x1, $y1 );
 }
-
 
 
 
@@ -552,7 +623,7 @@ sub find_place_for_cat_name_controls_direction {
   my $placed     = shift || $self->placed;  # aref of rectangles
 
   my $cat_name = $cat->{ name };
-  $self->dbg("cat: " . $cat->{id} . ' ' . $cat_name);
+  $self->hello_sub("cat: " . $cat->{id} . ' ' . $cat_name);
 
   # default direction to move from cat_name (first half alpha goes right, second goes down)
   my $first_char = substr( $cat_name, 0, 1);
@@ -577,7 +648,7 @@ sub find_place_for_cat_name_controls_direction {
   }
 
   my $rect = 
-    $self->sweep_in_direction_for_open_space( $cat, $x1, $y1, $direction );
+    $self->sweep_in_direction_for_open_space( $cat, $direction, $x1, $y1  );
 
   $self->farewell();
   return ( $x1, $y1 );
@@ -586,19 +657,23 @@ sub find_place_for_cat_name_controls_direction {
 
 =item sweep_in_direction_for_open_space
 
-Starting from the given initial x/y location, 
-look in the indicated direction until there's 
-enough open room for the $cat.
+Look for space for the $cat, going in the direction
+indicated starting from the initial x/y location.
 
 Direction is a code (at present) limited to:
 
-  'v' -- vertical
-  'h' -- horizontal
+  'e' -- east 
+  'w' -- west
+  'n' -- south
+  's' -- north
+
+  'v' -- vertical    (same as south)
+  'h' -- horizontal  (same as east)
 
 Example usage:
 
   my $rect = 
-    $self->sweep_in_direction_for_open_space( $cat, $x1, $x2, $direction );
+    $self->sweep_in_direction_for_open_space( $cat, $direction, $x1, $x2  );
 
 Returns a new rectangle object.
 
@@ -607,9 +682,12 @@ Returns a new rectangle object.
 sub sweep_in_direction_for_open_space {
   my $self      = shift;
   my $cat       = shift;
+  my $direction = shift;
   my $x1        = shift;
   my $y1        = shift;
-  my $direction = shift;
+
+  $self->hello_sub("cat: " . $cat->{id} . ' ' . $cat-> {name});
+
   my $placed    = $self->placed;
 
   # try out this position (xy pair) against existing placed rects
@@ -624,10 +702,15 @@ sub sweep_in_direction_for_open_space {
   POS: 
     foreach my $prev_rect ( @{ $placed } ) {
       if ( $rect->is_overlapping( $prev_rect ) ) {  
-        if ( $direction eq 'h' ) {    # horizontal
+        if ( ( $direction eq 'h' ) || ( $direction eq 'e' ) ) {    # horizontal
           $x1++;
-        } elsif ( $direction eq 'v') { # vertical
+        } elsif ( ( $direction eq 'v') || ( $direction eq 's' ) ) { # vertical
           $y1++;
+        } elsif (  $direction eq 'w'  ) { 
+          $x1--;
+        }
+        elsif (  $direction eq 'n'  ) { 
+          $y1--;
         }
         next POS;
       } 
@@ -636,6 +719,8 @@ sub sweep_in_direction_for_open_space {
     $new_rect = $rect;
     last RECT;
   }
+  my $mess = defined( $new_rect ) ?  "returning rectangle" : "returning undef";
+  $self->farewell( $mess );
   return $new_rect;
 }
 
@@ -662,7 +747,7 @@ sub place_cat {
   my $placed     = shift || $self->placed;  # aref of rectangles
 #  my $direction  = shift || '';
   my $cat_name = $cat->{ name };
-  $self->dbg("cat: " . $cat->{id} . ' ' . $cat_name);
+  $self->hello_sub("cat: " . $cat->{id} . ' ' . $cat_name);
 
   # default direction to move from cat_name (first half alpha goes right, second goes down)
 
@@ -730,7 +815,7 @@ sub place_cat {
 sub generate_layout_metacats_doublezig {
   my $self = shift;
   my ($x, $y) = ($self->initial_x, $self->initial_y);
-  # $self->dbg("");
+  # $self->hello_sub("");
 
   my $cats = $self->list_all_cats('metacats_doublezig'); 
 
@@ -792,7 +877,7 @@ sub generate_layout_for_row {
   my $cats  = shift;
   my $x     = shift;
   my $y     = shift; 
-  # $self->dbg("cat_count: " . scalar( @{ $cats } ) );
+  # $self->hello_sub("cat_count: " . scalar( @{ $cats } ) );
   my $max_y; 
 
   unless( $cats && scalar( @{ $cats } ) ){
@@ -810,7 +895,7 @@ sub generate_layout_for_row {
 
   # peek ahead at the heights of next chunk of cats
   my $row_height_envelope = 
-    $self->max_height_of_next_cats( $cats, $cats_per_row + 1 );  # $cats is aref of hrefs, keys id & name 
+    $self->max_height_of_next_cats( $cats, $cats_per_row + 1 ); # $cats is aref of hrefs, keys id & name 
 
   my @row_layout = ();
 
@@ -902,7 +987,7 @@ Example usage:
 sub next_cat {
   my $self = shift;
   my $cats = shift;
-  # $self->dbg("cat_count: " . scalar( @{ $cats } ) );
+  # $self->hello_sub("cat_count: " . scalar( @{ $cats } ) );
   my ( $cat, $cat_id, $cat_name, $cat_spots, $height_in_lines );
   do{{
     $cat = shift @{ $cats }; 
@@ -968,7 +1053,7 @@ Example usage:
 sub max_height_of_next_cats {
   my $self = shift;
   my $cats = shift;
-  # $self->dbg("cat_count: " . scalar( @{ $cats } ) );
+  # $self->hello_sub("cat_count: " . scalar( @{ $cats } ) );
   # get initial size-envelope from upcoming cats
   my $cat_row_height = 0;  # number of lines
 
@@ -1440,7 +1525,7 @@ sub update_x_y_of_cat {
   my $cat_id = shift;
   my $x      = shift;
   my $y      = shift;
-  $self->dbg("cat_id: $cat_id x: $x, y: $y");
+  $self->hello_sub("cat_id: $cat_id x: $x, y: $y");
 
   my $sql_update = $self->sql_to_update_x_y();
   #     UPDATE layout SET x_location=?, y_location=? WHERE category = ?
@@ -1898,23 +1983,26 @@ sub html_container_footer {
 =over 
 
 
-=item dbg
+=item hello_sub
 
 =cut
 
-sub dbg {
+sub hello_sub {
   my $self = shift;
   my $msg     = shift;  # describing/sampling args 
+
+  my $debug = $DEBUG || $self->debug;
+
   my $package = ( caller(1) )[0];
   my $sub     = ( caller(1) )[3];
 
   (my $just_sub = $sub) =~ s/^ $package :://x;
 
-  my $output  = "$just_sub";
+  my $output  = "call: $just_sub";
   $output .= " with $msg" if $msg;
 
   # $output .= " $package";
-  print STDERR "$output\n";
+  print STDERR "$output\n" if $debug;
 }
 
 
@@ -1927,14 +2015,41 @@ sub farewell {
   my $self = shift;
   my $msg  = shift;
 
+  my $debug = $DEBUG || $self->debug;
+
   my $package = ( caller(1) )[0];
   my $sub     = ( caller(1) )[3];
 
   (my $just_sub = $sub) =~ s/^ $package :://x;
 
-  my $output  = "    $just_sub";
+  my $indie = "    exit: ";
+  my $output  = $indie . $just_sub;
   $output .= "  with $msg" if $msg;
-  print STDERR "$output\n";
+  print STDERR "$output\n" if $debug;;
+}
+
+
+=item dbg
+
+Output message to STDERR, but only if debug is on.
+
+=cut
+
+sub dbg {
+  my $self = shift;
+  my $msg     = shift;  # describing/sampling args 
+
+  my $debug = $DEBUG || $self->debug;
+
+  my $package = ( caller(1) )[0];
+  my $sub     = ( caller(1) )[3];
+  (my $just_sub = $sub) =~ s/^ $package :://x;
+  ### Get line number?  Or getting too carpy?
+
+  my $output  = "$just_sub: $msg";
+  $output .= " with $msg" if $msg;
+
+  print STDERR "$output\n" if $debug;
 }
 
 

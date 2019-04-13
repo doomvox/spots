@@ -50,9 +50,8 @@ my $DEBUG = 1;
 
 =head1 DESCRIPTION
 
-Spots::Rectangle is a class for representing a simple,
-grid-aligned rectangle (as is often used in software UIs)
-as two points:
+Spots::Rectangle is a class for representing a simple, axis-aligned
+rectangle (as is often used in software UIs) as two points:
 
 
                                 x         
@@ -96,6 +95,15 @@ An array ref of the coordinates of the rectangle, x1, y1, x2, y2.
 Individidual coordinate fields, set automatically if coords is 
 defined when object is created.
 
+=item center 
+
+The center of the rectangle (an array ref of the x and y coordinates).
+
+=item meta
+
+Meta-data for the rectangle, which isn't likely to just be abstract 
+geometry.  HashRef.
+
 =back
 
 =cut
@@ -107,11 +115,14 @@ has y1 => ( is => 'ro', isa => Int, lazy => 1, builder=>'build_y1' );
 has x2 => ( is => 'ro', isa => Int, lazy => 1, builder=>'build_x2' );
 has y2 => ( is => 'ro', isa => Int, lazy => 1, builder=>'build_y2' );
 
-has y_weight => ( is => 'ro', isa => Int, default => 10 );  # 1 rem =~ 10 px , used by "distance" calculation
-
+# has y_weight => ( is => 'ro', isa => Int, default => 10 );  # 1 rem =~ 10 px , used by "distance" calculation
 # has y_weight => ( is => 'ro', isa => Int, default => 1 );  # comparing rem to px
+has y_weight => ( is => 'ro', isa => Int, default => 12 );  # comparing rem to px
 
 has center => ( is => 'ro', isa => ArrayRef, lazy => 1, builder=>'calculate_center' ); 
+
+has meta => ( is => 'rw', isa => HashRef, lazy => 1, builder=>sub{ {} } ); 
+
 
 sub build_x1 {
   my $self = shift;
@@ -172,7 +183,7 @@ sub distance {
   my $self  = shift;
   my $other = shift;
   my $y_weight = shift || $self->y_weight;
-  
+
   my ($xs, $ys) = @{ $self->center };
   my ($xo, $yo) = @{ $other->center };
 
