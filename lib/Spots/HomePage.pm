@@ -13,7 +13,7 @@ Version 0.01
 =cut
 
 our $VERSION = '0.01';   # TODO revise before shipping
-my $DEBUG = 1; # (unused, at present)
+my $DEBUG = 1; 
 
 =head1 SYNOPSIS
 
@@ -156,6 +156,9 @@ has cats_per_row   => (is => 'rw', isa => Int, default=>7 );
 has color_scheme => (is => 'rw', isa => Str, default => 'dev' ); 
 
 has layout_style => (is => 'rw', isa => Str, default => 'metacats_doublezig' ); 
+
+# array of rectangles added to the current layout (used by 'metacats_fanout')
+has placed       => (is => 'rw', isa => ArrayRef, default => sub{ [] } );
 
 # The way I'd like Moo to work is with class names acting as types:
 #   has dbh              
@@ -309,13 +312,6 @@ sub cat_size_to_layout {
   return $popcat;
 }
 
-
-
-
-
-
-
-
 =item generate_layout
 
 Use the spots/category tables to generate a layout scheme,
@@ -367,36 +363,136 @@ sub generate_layout_metacats_fanout {
   my $cats = shift || $self->list_all_cats(); 
   my $cat_count = scalar( @{ $cats } );
   $self->dbg("cat_count: $cat_count");
-  my @placed;
-  my $first = 1;
+  my ($x1, $y1) = ($self->initial_x, $self->initial_y);
+  $self->placed( [] );  # TODO is that the right way to clear it? 
+  my $placed = $self->placed;
+  # initialize $placed array: place the first cat in upper-left
+  my $cat = shift @{ $cats };
+  # $self->put_cat_in_place( $cat, $x1, $y1, $placed );
+  $self->put_cat_in_place( $cat, $x1, $y1 );
+
  CAT:
   foreach my $cat ( @{ $cats } ) { 
-    my $cat_id   = $cat->{ id };
-    my $cat_name = $cat->{ name };
-
-    my $cat_spots = $self->fill_in_cat( $cat );   # add data to the $cat
-
+    my $cat_spots = $self->count_cat_spots( $cat ); # implicit fill_in_cat
     next CAT if not $cat_spots; # skip empty category
 
-    my ($w, $h) = ( $cat->{ width }, $cat->{ height } );
-
-    my ($x, $y);
-    if( $first ) {
-      ($x, $y) = ($self->initial_x, $self->initial_y);
-      $first = 0;
-    } else {
-      # pick location for cat, avoid collision with anything in @placed,
-      # then stash cat in "placed" data structure
-      ($x, $y) = $self->place_cat( $cat, \@placed );
-    }
-    say STDERR "about to upd: x: $x, y: $y";
-    # save x,y values to database
-    $self->update_x_y_of_cat( $cat_id, $x, $y );
+    # TODO this is still the current way of doing this:
+    my $cat_id   = $cat->{ id };
+#    my ($x, $y) = $self->place_cat( $cat, $placed );   # find place for cat, also puts in @$placed
+    my ($x, $y) = $self->place_cat( $cat );   # find place for cat, also puts in $placed aref
+    $self->update_x_y_of_cat( $cat_id, $x, $y );                   
+    # ... but eventually replace that with this (maybe):
+    # my ($x1, $y1) = $self->find_place_for_cat( $cat, $placed );
+    # $self->put_cat_in_place( $cat, $x1, $y1, $placed );
   }
-  say STDERR "place_cats have placed: " . scalar( @placed ) . "\n" .  Dumper( \@placed );
+  my $place_count = scalar( @{ $placed } );
+  ($DEBUG) && say STDERR "place_cats have placed: $place_count \n" .  Dumper( $placed );
   $self->farewell();
-  # return $ret;  # TODO
+  return $place_count; 
 }
+
+
+
+=item put_cat_in_place
+
+Given $cat href, an x & y location (plus a ref to the @placed array),
+puts an appropriate rectangle object in the @placed array, 
+and also updates the position in the layout table.
+
+Example usage:
+
+  $self->put_cat_in_place( $cat, $x1, $y1, \@placed );
+
+Or more likely:
+
+  $self->put_cat_in_place( $cat, $x1, $y1 );
+
+=cut
+
+sub put_cat_in_place {
+  my $self    = shift;
+  my $cat     = shift;
+  my $x1      = shift;
+  my $y1      = shift;
+  my $placed  = shift  || $self->placed;
+  my ($width, $height) = $self->cat_width_height( $cat ); # implicit fill_in_cat
+  my $rect = 
+    $self->create_rectangle( $x1, $y1, $width, $height );
+  push @{ $placed }, $rect;
+  my $cat_id = $cat->{ id };
+  $self->update_x_y_of_cat( $cat_id, $x1, $y1 );  # save x,y values to database
+}
+
+=item count_cat_spots
+
+Given a $cat href, returns the count of spots in the category, 
+running "fill_in_cat" on it first, if necessary.
+
+Example use:
+
+   my $cat_spots = $self->count_cat_spots( $cat );
+
+=cut
+
+sub count_cat_spots {
+  my $self = shift;
+  my $cat  = shift;
+  my $spot_count;
+  no warnings 'uninitialized';
+  unless ( defined( $cat->{ spot_count } ) ) {
+    $spot_count = $self->fill_in_cat( $cat );   # add data to the $cat    
+  }
+  $spot_count = $cat->{spot_count};
+  return $spot_count
+}
+
+=item cat_width_height
+
+Given a $cat href, returns the width and height, running
+"fill_in_cat" on it first if necessary.  
+
+Example use:
+
+   my ($width, $height) = $self->cat_width_height( $cat );
+
+=cut
+
+sub cat_width_height {
+  my $self = shift;
+  my $cat  = shift;
+  no warnings 'uninitialized';
+  unless ( defined( $cat->{ width } ) && defined( $cat->{ height } ) ) {
+    $self->fill_in_cat( $cat );   # add data to the $cat    
+  }
+  my ($width, $height) = ($cat->{width}, $cat->{height});  
+  return ($width, $height);
+}
+
+=item create_rectangle
+
+Returns a rectangle object at the given point, with given width and height.
+
+Example use:
+
+  my $first_rect = 
+    $self->create_rectangle( $x1, $y1, $width, $height );
+
+=cut
+
+sub create_rectangle {
+  my $self = shift;
+
+  my $x1 = shift;
+  my $y1 = shift;
+  my $width = shift;
+  my $height = shift;
+
+  my $x2 = $x1 + $width;
+  my $y2 = $y1 + $height;
+  my $rect = Spots::Rectangle->new({ coords => [ $x1, $y1, $x2, $y2 ] });  
+  return $rect;
+}
+
 
 
 
@@ -412,56 +508,37 @@ Example usage:
 =cut
 
 sub place_cat {
-  my $self = shift;
-  my $cat    = shift;
-  my $placed = shift;  # array of rectangles
-  my $dirction    = shift || '';
+  my $self       = shift;
+  my $cat        = shift;
+  my $placed     = shift || $self->placed;  # aref of rectangles
+#  my $direction  = shift || '';
+  my $cat_name = $cat->{ name };
+  $self->dbg("cat: " . $cat->{id} . ' ' . $cat_name);
 
   # default direction to move from cat_name (first half alpha goes right, second goes down)
-  my $cat_name = $cat->{ name };
+
   my $first_char = substr( $cat_name, 0, 1);
 
-# #  $dirction = 'h'; # TODO DEBUG
-#   $dirction = 'v'; # TODO DEBUG
-
-  unless( $dirction ) { 
-    if ($first_char lt 'm' ) {
-      $dirction = 'h';
-    } else {
-      $dirction = 'v';
-    }
+  my $direction; 
+  if ($first_char lt 'm' ) {
+    $direction = 'h';
+  } else {
+    $direction = 'v';
   }
-
-  my ($x_init, $y_init) = ($self->initial_x, $self->initial_y);
-
-  # TODO tangled thinking about initially placing the first rect.
-  #      just pull the first one off and do it, right?  
-
-  # (Here, I'm trying to generate a bogus last_rect without actually 
-  # placing it, so there's an open space in the first spot...)
 
   # choose a place to begin, a possible $x1, $y1 
   my $last_rect = $placed->[ -1 ];
-
-  my ($x1, $y1, $x2, $y2);
-  if ( $last_rect ) { 
-    $x1 = $last_rect->x1;
-    $y1 = $last_rect->y1;
-    $x2 = $last_rect->x2;
-    $y2 = $last_rect->y2;
-  } else {
-    ($x1, $y1, $x2, $y2) = ($x_init, $y_init, $x_init, $y_init);
-  }
+  my ($x1, $y1, $x2, $y2) = ($last_rect->x1, $last_rect->y1, $last_rect->x2, $last_rect->y2);
 
   # start at the far edge of the last rectangle
-  if( $dirction eq 'h' ) {  # horizontal
+  if( $direction eq 'h' ) {  # horizontal
     $x1 = $x2;
-  } elsif( $dirction eq 'v') {  # vertical
+  } elsif( $direction eq 'v') {  # vertical
     $y1 = $y2;
   }
 
   # try out this position (xy pair) against existing placed rects
-  # if there's a collison, keep moving in the direction $dirction
+  # if there's a collison, keep moving in the direction $direction
   my $new_rect;
  RECT:
   while( 1 ) { 
@@ -469,14 +546,12 @@ sub place_cat {
     my $y2 = $y1 + $cat->{ height };
     my $rect = Spots::Rectangle->new({ coords => [ $x1, $y1, $x2, $y2 ] });  
 
-#    my $clear = 1;
   POS: 
     foreach my $prev_rect ( @{ $placed } ) {
       if ( $rect->is_overlapping( $prev_rect ) ) {  
-#        $clear = 0;
-        if ( $dirction eq 'h' ) {    # horizontal
+        if ( $direction eq 'h' ) {    # horizontal
           $x1++;
-        } elsif ( $dirction eq 'v') { # vertical
+        } elsif ( $direction eq 'v') { # vertical
           $y1++;
         }
         next POS;
@@ -492,6 +567,7 @@ sub place_cat {
 
   #  newly choosen x,y vals added to the $cat as well as returned
   ( $cat->{x_location}, $cat->{y_location} ) = ($x1, $y1);
+  $self->farewell();
   return ( $x1, $y1 );
 }
 
@@ -1061,10 +1137,16 @@ sub lookup_cat {
 =item fill_in_cat
 
 Given a $cat (href with field 'cat_id'), gets additional
-information about it and adds it to the $cat href.
+information about it and adds it to the $cat href:
 
-Note: if the x_location and y_location information may not 
-yet be defined yet.  
+  width
+  height
+  x
+  y 
+  spots       (aref)
+  spot_count
+
+Note: the x and y information may not yet be defined.
 
 Essentially, a variation of L<lookup_cat_and_size>.
 
