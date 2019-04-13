@@ -343,7 +343,6 @@ sub generate_layout {
 }
 
 
-
 =item generate_layout_metacats_fanout
 
 TODO roughly: start in the upper left corner, and move outwards
@@ -376,14 +375,8 @@ sub generate_layout_metacats_fanout {
     my $cat_spots = $self->count_cat_spots( $cat ); # implicit fill_in_cat
     next CAT if not $cat_spots; # skip empty category
 
-    # TODO this is still the current way of doing this:
-    my $cat_id   = $cat->{ id };
-#    my ($x, $y) = $self->place_cat( $cat, $placed );   # find place for cat, also puts in @$placed
-    my ($x, $y) = $self->place_cat( $cat );   # find place for cat, also puts in $placed aref
-    $self->update_x_y_of_cat( $cat_id, $x, $y );                   
-    # ... but eventually replace that with this (maybe):
-    # my ($x1, $y1) = $self->find_place_for_cat( $cat, $placed );
-    # $self->put_cat_in_place( $cat, $x1, $y1, $placed );
+    my ($x1, $y1) = $self->find_place_for_cat( $cat );
+    $self->put_cat_in_place( $cat, $x1, $y1 );
   }
   my $place_count = scalar( @{ $placed } );
   ($DEBUG) && say STDERR "place_cats have placed: $place_count \n" .  Dumper( $placed );
@@ -395,15 +388,11 @@ sub generate_layout_metacats_fanout {
 
 =item put_cat_in_place
 
-Given $cat href, an x & y location (plus a ref to the @placed array),
-puts an appropriate rectangle object in the @placed array, 
+Given $cat href, an x & y location 
+puts an appropriate rectangle object in the object's @placed array, 
 and also updates the position in the layout table.
 
 Example usage:
-
-  $self->put_cat_in_place( $cat, $x1, $y1, \@placed );
-
-Or more likely:
 
   $self->put_cat_in_place( $cat, $x1, $y1 );
 
@@ -415,6 +404,10 @@ sub put_cat_in_place {
   my $x1      = shift;
   my $y1      = shift;
   my $placed  = shift  || $self->placed;
+
+  #  newly choosen x, y vals added to the $cat
+  ( $cat->{x}, $cat->{y} ) = ($x1, $y1);
+
   my ($width, $height) = $self->cat_width_height( $cat ); # implicit fill_in_cat
   my $rect = 
     $self->create_rectangle( $x1, $y1, $width, $height );
@@ -494,6 +487,111 @@ sub create_rectangle {
 }
 
 
+=item find_place_for_cat
+
+pick location for cat, avoid collision with anything in placed.
+also stash cat in "placed" data structure
+
+Example usage:
+
+      my ($x1, $y1) = $self->find_place_for_cat( $cat )
+
+=cut
+
+sub find_place_for_cat {
+  my $self       = shift;
+  my $cat        = shift;
+  my $placed     = shift || $self->placed;  # aref of rectangles
+
+  my $cat_name = $cat->{ name };
+  $self->dbg("cat: " . $cat->{id} . ' ' . $cat_name);
+
+  # default direction to move from cat_name (first half alpha goes right, second goes down)
+  my $first_char = substr( $cat_name, 0, 1);
+
+  my $direction; 
+  if ($first_char lt 'm' ) {
+    $direction = 'h';
+  } else {
+    $direction = 'v';
+  }
+
+  # start with the last "placed" rectangle (will pick a place near it)
+  my $last_rect = $placed->[ -1 ];
+  my ($x1, $y1, $x2, $y2) =
+    ($last_rect->x1, $last_rect->y1, $last_rect->x2, $last_rect->y2);
+
+  # start at the far edge of the last rectangle
+  if( $direction eq 'h' ) {  # horizontal
+    $x1 = $x2;
+  } elsif( $direction eq 'v') {  # vertical
+    $y1 = $y2;
+  }
+
+  my $rect = 
+    $self->sweep_in_direction_for_open_space( $cat, $x1, $x2, $direction );
+
+  $self->farewell();
+  return ( $x1, $y1 );
+}
+
+
+=item sweep_in_direction_for_open_space
+
+Starting from the given initial x/y location, 
+look in the indicated direction until there's 
+enough open room for the $cat.
+
+Direction is a code (at present) limited to:
+
+  'v' -- vertical
+  'h' -- horizontal
+
+Example usage:
+
+  my $rect = 
+    $self->sweep_in_direction_for_open_space( $cat, $x1, $x2, $direction );
+
+Returns a new rectangle object.
+
+=cut
+
+sub sweep_in_direction_for_open_space {
+  my $self      = shift;
+  my $cat       = shift;
+  my $x1        = shift;
+  my $y1        = shift;
+  my $direction = shift;
+  my $placed    = $self->placed;
+
+  # try out this position (xy pair) against existing placed rects
+  # if there's a collison, keep moving in the direction $direction
+  my $new_rect;
+ RECT:
+  while( 1 ) { 
+    my $x2 = $x1 + $cat->{ width  };
+    my $y2 = $y1 + $cat->{ height };
+    my $rect = Spots::Rectangle->new({ coords => [ $x1, $y1, $x2, $y2 ] });  
+
+  POS: 
+    foreach my $prev_rect ( @{ $placed } ) {
+      if ( $rect->is_overlapping( $prev_rect ) ) {  
+        if ( $direction eq 'h' ) {    # horizontal
+          $x1++;
+        } elsif ( $direction eq 'v') { # vertical
+          $y1++;
+        }
+        next POS;
+      } 
+    }
+    # If we've made it to here, we're in the clear
+    $new_rect = $rect;
+    last RECT;
+  }
+  return $new_rect;
+}
+
+
 
 
 =item place_cat
@@ -504,6 +602,9 @@ also stash cat in "placed" data structure
 Example usage:
 
       ($x, $y) = $self->place_cat( $cat, \@placed );
+
+TODO moving the stashing features to "put_cat_in_place" (along with db update of layout).
+     want a variant version of this routine that just picks a place: "find_place_for_cat"
 
 =cut
 
