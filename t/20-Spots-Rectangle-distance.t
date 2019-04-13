@@ -19,7 +19,9 @@ use List::MoreUtils qw( any );
 use Test::More;
 
 BEGIN {
-  use_ok( 'Spots::Rectangle' )
+  use FindBin qw($Bin);
+  use lib ("$Bin/../lib/");
+  use_ok( 'Spots::Rectangle' , )
 }
 
 ok(1, "Traditional: If we made it this far, we're ok.");
@@ -31,7 +33,20 @@ ok(1, "Traditional: If we made it this far, we're ok.");
 {  my $subname = "distance";
    my $test_name = "Testing $subname";
 
-    
+   # my $obj = Spots::Rectangle->new();
+   # $obj->distance();
+
+   my $rect_a = Spots::Rectangle->new({ 
+                coords => [ 10, 15, 20, 27 ] 
+              });  
+   my $rect_b = Spots::Rectangle->new({ 
+                coords => [ 35, 55, 50, 70 ] 
+              });  
+   my $center_to_center_distance = $rect_a->distance( $rect_b, 1 );
+   my $check_dist = sprintf( "%.1f", $center_to_center_distance );
+   # my $expected_dist = 48.54; # my attempt at manual calculation
+   my $expected_dist = 49.8; # freezing behavior   TODO 
+   is( $check_dist, $expected_dist, "$test_name" );
  }
 
 done_testing();

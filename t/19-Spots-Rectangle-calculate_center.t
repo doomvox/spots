@@ -19,7 +19,9 @@ use List::MoreUtils qw( any );
 use Test::More;
 
 BEGIN {
-  use_ok( 'Spots::Rectangle' )
+  use FindBin qw($Bin);
+  use lib ("$Bin/../lib/");
+  use_ok( 'Spots::Rectangle' , )
 }
 
 ok(1, "Traditional: If we made it this far, we're ok.");
@@ -31,7 +33,54 @@ ok(1, "Traditional: If we made it this far, we're ok.");
 {  my $subname = "calculate_center";
    my $test_name = "Testing $subname";
 
-    
+   my $r1_coords = [ 10, 15, 20, 27 ];
+
+   my $rect = Spots::Rectangle->new( coords=>$r1_coords );
+   my ($xc, $yc) = @{ $rect->calculate_center() };
+
+#              10           xc          20
+#               .            .           .
+#    o-------------------------------------->  x
+#    |                        
+#    |                        
+#    |       (10, 15)         
+#    |                        
+#    |- 15      o------------------------o
+#    |          |                        |
+#    |          |                        |     
+#    |          |                        |     
+#    |- yc      |            x           |     
+#    |          |                        |     
+#    |          |                        |     
+#    |          |                        |     
+#    |- 27      o------------------------o     
+#    |                                         
+#    V                                 (20, 27)
+#                           
+#    y                        
+#                           
+#           xc = (20 - 10)/2  + 10  = 15
+#           yc = (27 - 15)/2  + 15  = 21
+# 
+
+
+   is( $xc, 15, "$test_name: x of center" );
+   is( $yc, 21, "$test_name: y of center" );
+
  }
+
+{  my $subname = "center";
+   my $test_name = "Testing $subname";
+
+   my $r1_coords = [ 10, 15, 20, 27 ];
+
+   my $rect = Spots::Rectangle->new( coords=>$r1_coords );
+   my ($xc, $yc) = @{ $rect->center() };
+   is( $xc, 15, "$test_name: x of center" );
+   is( $yc, 21, "$test_name: y of center" );
+ }
+
+
+
 
 done_testing();

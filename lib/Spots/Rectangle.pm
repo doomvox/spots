@@ -28,10 +28,23 @@ my $DEBUG = 1;
 
    my $x1 = $rect->x1 
 
-
    if( not( $rect_a->is_overlapping( $rect_b ) ) ) {
       say "Rectangles A and B do not overlap"; 
    }                                           
+
+
+
+   my $rect_a = Spots::Rectangle->new({ 
+                coords => [ 10, 15, 20, 27 ] 
+              });  
+   my $rect_b = Spots::Rectangle->new({ 
+                coords => [ 35, 55, 50, 70 ] 
+              });  
+
+  my $center_to_center_distance = $rect_a->distance( $rect_b );
+
+
+
 
 
 
@@ -91,8 +104,14 @@ has coords => ( is => 'ro', isa => ArrayRef, builder => sub{ [] } );
 
 has x1 => ( is => 'ro', isa => Int, lazy => 1, builder=>'build_x1' );
 has y1 => ( is => 'ro', isa => Int, lazy => 1, builder=>'build_y1' );
-has x2 => ( is => 'ro', isa => Int, lazy => 2, builder=>'build_x2' );
-has y2 => ( is => 'ro', isa => Int, lazy => 2, builder=>'build_y2' );
+has x2 => ( is => 'ro', isa => Int, lazy => 1, builder=>'build_x2' );
+has y2 => ( is => 'ro', isa => Int, lazy => 1, builder=>'build_y2' );
+
+has y_weight => ( is => 'ro', isa => Int, default => 10 );  # 1 rem =~ 10 px , used by "distance" calculation
+
+# has y_weight => ( is => 'ro', isa => Int, default => 1 );  # comparing rem to px
+
+has center => ( is => 'ro', isa => ArrayRef, lazy => 1, builder=>'calculate_center' ); 
 
 sub build_x1 {
   my $self = shift;
@@ -125,6 +144,41 @@ sub build_y2 {
 { no warnings 'once'; $DB::single = 1; }
 
 
+=item calculate_center
+
+=cut
+
+sub calculate_center {
+  my $self = shift;
+  my $x1 = $self->x1;
+  my $x2 = $self->x2;
+  my $y1 = $self->y1;
+  my $y2 = $self->y2;
+
+  my $x = ($x2-$x1)/2 + $x1;
+  my $y = ($y2-$y1)/2 + $y1;
+
+  return [$x, $y];
+}
+
+
+
+=item distance
+
+
+=cut
+
+sub distance {
+  my $self  = shift;
+  my $other = shift;
+  my $y_weight = shift || $self->y_weight;
+  
+  my ($xs, $ys) = @{ $self->center };
+  my ($xo, $yo) = @{ $other->center };
+
+  my $distance = sqrt( ($xs - $xo)**2 + ($ys*$y_weight - $yo*$y_weight)**2 );
+  return $distance;
+}
 
 =item is_overlapping
 

@@ -506,6 +506,54 @@ sub find_place_for_cat {
   my $cat_name = $cat->{ name };
   $self->dbg("cat: " . $cat->{id} . ' ' . $cat_name);
 
+  # start with the last "placed" rectangle (will pick a place near it)
+  my $last_rect = $placed->[ -1 ];
+  my ($x1, $y1, $x2, $y2) =
+    ($last_rect->x1, $last_rect->y1, $last_rect->x2, $last_rect->y2);
+
+  my $rect_h = 
+    $self->sweep_in_direction_for_open_space( $cat, $x2, $y1, 'h' );
+
+  my $rect_v = 
+    $self->sweep_in_direction_for_open_space( $cat, $x1, $y2, 'v' );
+
+  # get distance to either rectangle, choose the minimum
+  my $new_rect;
+  if ( $last_rect->distance( $rect_h ) < $last_rect->distance( $rect_v ) ) {
+    $new_rect = $rect_h; 
+  } else {
+    $new_rect = $rect_v; 
+  }
+
+  ($x1, $y1) = ($new_rect->x1, $new_rect->y1);
+  $self->farewell();
+  return ( $x1, $y1 );
+}
+
+
+
+
+
+=item find_place_for_cat_name_controls_direction
+
+pick location for cat, avoid collision with anything in placed.
+also stash cat in "placed" data structure
+
+Example usage:
+
+      my ($x1, $y1) = $self->find_place_for_cat_name_controls_direction( $cat )
+
+=cut
+
+sub find_place_for_cat_name_controls_direction {
+# sub find_place_for_cat {
+  my $self       = shift;
+  my $cat        = shift;
+  my $placed     = shift || $self->placed;  # aref of rectangles
+
+  my $cat_name = $cat->{ name };
+  $self->dbg("cat: " . $cat->{id} . ' ' . $cat_name);
+
   # default direction to move from cat_name (first half alpha goes right, second goes down)
   my $first_char = substr( $cat_name, 0, 1);
 
@@ -529,7 +577,7 @@ sub find_place_for_cat {
   }
 
   my $rect = 
-    $self->sweep_in_direction_for_open_space( $cat, $x1, $x2, $direction );
+    $self->sweep_in_direction_for_open_space( $cat, $x1, $y1, $direction );
 
   $self->farewell();
   return ( $x1, $y1 );
