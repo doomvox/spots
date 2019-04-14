@@ -174,6 +174,85 @@ sub calculate_center {
 
 
 
+=item stash
+
+Stash something in meta under given key.
+
+Example use:
+
+  $self->stash( $key, $value );
+
+=cut
+
+sub stash {
+  my $self  = shift;
+  my $key   = shift;
+  my $value = shift;
+
+  my $meta = $self->meta;
+  $meta->{$key}=$value;
+  return $meta;
+}
+
+
+
+=item hsats
+
+Retrieve something stashed in meta under given key.
+
+Example use:
+
+  my $value = $self->hsats( $key );
+
+=cut
+
+sub hsats {
+  my $self  = shift;
+  my $key   = shift;
+
+  my $meta = $self->meta;
+  my $value = $meta->{$key};
+  return $value;
+}
+
+
+
+=item metacat
+
+Retrieve the 'metacat' stashed in the rectangle meta info.  From Metaluna.
+
+A convenience routine for Spots::HomePage.
+
+=cut
+
+sub metacat {
+  my $self = shift;
+  my $key   = 'metacat';
+  my $meta = $self->meta;
+  my $value = $meta->{$key};
+  return $value;
+}
+
+
+=item cat
+
+Retrieve the 'cat' stashed in the rectangle meta info.  
+
+A convenience routine for Spots::HomePage.
+
+=cut
+
+sub cat {
+  my $self = shift;
+  my $key   = 'cat';
+  my $meta = $self->meta;
+  my $value = $meta->{$key};
+  return $value;
+}
+
+
+
+
 =item distance
 
 

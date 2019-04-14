@@ -19,7 +19,9 @@ use List::MoreUtils qw( any );
 use Test::More;
 
 BEGIN {
-  use_ok( 'Spots::Rectangle' )
+  use FindBin qw($Bin);
+  use lib ("$Bin/../lib/");
+  use_ok( 'Spots::Rectangle' , )
 }
 
 ok(1, "Traditional: If we made it this far, we're ok.");
@@ -31,7 +33,45 @@ ok(1, "Traditional: If we made it this far, we're ok.");
 {  my $subname = "stash";
    my $test_name = "Testing $subname";
 
-    
+   my ($x1, $y1, $x2, $y2) = ( 4, 13, 16, 27 );
+   my $rect = Spots::Rectangle->new( coords => [ $x1, $y1, $x2, $y2 ] );
+
+   my $key   = 'ster';
+   my $value = 'bupkes';
+
+   $rect->stash( $key, $value );
+
+   my $meta = $rect->meta;
+   
+   my $expected_meta = { ster => $value };
+   is_deeply( $meta, $expected_meta, "$test_name: stashed value is in meta  " ); 
+
+   my $retrieved = $rect-> hsats( $key );
+
+   is( $retrieved, $value, "$test_name: retrieved value via hsats checks" );
  }
+
+
+{  my $subname = "metacat";
+   my $test_name = "Testing $subname";
+
+   my ($x1, $y1, $x2, $y2) = ( 4, 13, 16, 27 );
+   my $rect = Spots::Rectangle->new( coords => [ $x1, $y1, $x2, $y2 ] );
+
+   my $key   = 'metacat';
+   my $value = 66;
+
+   $rect->stash( $key, $value );
+
+   my $meta = $rect->meta;
+
+   my $expected_meta = { metacat => $value };
+   is_deeply( $meta, $expected_meta, "$test_name: stashed value is in meta  " ); 
+
+   my $retrieved = $rect->metacat;
+
+   is( $retrieved, $value, "$test_name: retrieved value via metacat checks" );
+ }
+
 
 done_testing();

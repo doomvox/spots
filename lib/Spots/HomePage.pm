@@ -119,10 +119,9 @@ For others, see L<generate_layout>.  Under development: 'metacats_fanout'
 
 =cut
 
-# Example attribute:
-# has is_loop => ( is => 'rw', isa => Int, default => 0 );
+{ no warnings 'once'; $DB::single = 1; }
 
-# $DB::single = 1;
+has debug => (is => 'rw', isa => Bool, default => sub{return ($DEBUG||0)});
 
 has db_database_name => (is => 'rw', isa => Str, default => 'spots' );
 
@@ -167,10 +166,11 @@ has placed       => (is => 'rw', isa => ArrayRef, default => sub{ [] } );
 # 
 # What I guess I'm supposed to do (is this *really* better than Mouse?):
 has dbh              => (is => 'rw',   
-                         isa => sub {
-                           die "$_[0] not a db handle"
-                             unless ref $_[0] eq 'DBI::db'
-                           },
+#                          isa => sub {
+#                            die "$_[0] not a db handle"
+#                              unless ref $_[0] eq 'DBI::db'
+#                            },
+                         isa => InstanceOf['DBI::db'],
                          lazy => 1, builder => 'builder_db_connection' );
 
 has sth_cat           => (is => 'rw',   
