@@ -36,6 +36,31 @@ ok(1, "Traditional: If we made it this far, we're ok.");
    my $rect1 = Spots::Rectangle->new( coords=>$r1_coords );
 
    my @cases = (
+
+                { r2_coords => [ 10, 10, 20, 20 ],
+                  expected  => 1, # true, overlap
+                  name => "totally overlapped: second is same as the first",
+                  },
+                { r2_coords => [ 10, 10, 25, 25 ],
+                  expected  => 1, # true, overlap
+                  name => "totally overlapped: second shares x1 point, but is taller and wider",
+                  },
+
+                { r2_coords => [ 10, 8, 20, 22 ],
+                  expected  => 1, # true, overlap
+                  name => "overlapped: second taller but shares left & right edges",
+                  },
+
+                { r2_coords => [ 20, 20, 20, 20 ],
+                  expected  => 1, # true, overlap
+                  name => "second is degenerate point on top of x2,y2",
+                  },
+
+                { r2_coords => [ 21, 21, 21, 21 ],
+                  expected  => 0, # true, overlap
+                  name => "second is degenerate point but just near x2,y2",
+                  },
+
                 { r2_coords => [ 20, 20, 25, 15 ],
                   expected  => 0, # false, no-overlap
                   name => "no-overlap: second is diagonally adjacent from first",

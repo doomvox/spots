@@ -134,7 +134,7 @@ has output_directory => (is => 'rw', isa => Str,
 # rem per line
 has vertical_scale     => (is => 'rw', isa => Num,  default => 1.17 );  
 # px per char
-has horizontal_scale   => (is => 'rw', isa => Int,  default => 9    );  
+has horizontal_scale   => (is => 'rw', isa => Num,  default => 9    );  
 has vertical_padding   => (is => 'rw', isa => Num,  default => 0.6 );  # rem
 has horizontal_padding => (is => 'rw', isa => Int,  default => 2   );  # px 
 
@@ -227,6 +227,7 @@ sub builder_db_connection {
   my $self = shift;
 
   # TODO break-out more of these params as object fields
+  # TODO add a secrets file to pull auth info from
   my $dbname = $self->db_database_name; # default 'spots'
   my $port = '5434';
   my $data_source = "dbi:Pg:dbname=$dbname;port=$port;";
@@ -264,6 +265,16 @@ sub builder_prep_sth_sql_cat_size {
 }
 
 
+=item clear_placed
+
+=cut
+
+sub clear_placed {
+  my $self = shift;
+  @{ $self->{ placed } } = ();
+}
+
+
 =back
 
 =head2 layout generation
@@ -293,7 +304,7 @@ sub cat_size_to_layout {
  CAT:
   foreach my $cat ( @{ $cats } ) { 
     my $cat_id   = $cat->{ id };
-    my $cat_name = $cat->{ name };
+    # my $cat_name = $cat->{ name };
     my ($cat_spots, $height_in_lines) = $self->lookup_cat( $cat_id );  
     next CAT if not $cat_spots; # skip empty category
     $popcat++;
@@ -336,6 +347,11 @@ sub generate_layout {
   my $style = shift || $self->layout_style;
   $self->hello_sub("style: $style");
 
+  # general setup
+  # moving here, despite redundant 'list_all_cats'  TODO cache in object
+  my $cats = $self->list_all_cats( $style ); 
+  $self->cat_size_to_layout( $cats );  # populate h & w fields
+
   my $method = "generate_layout_$style";
   my $ret = $self->$method;
   $self->farewell();
@@ -363,13 +379,11 @@ sub generate_layout_metacats_fanout {
   my $cat_count = scalar( @{ $cats } );
   $self->hello_sub("cat_count: $cat_count");
   my ($x1, $y1) = ($self->initial_x, $self->initial_y);
-  $self->placed( [] );  # TODO is that the right way to clear it? 
+  $self->clear_placed;
   my $placed = $self->placed;
   # initialize $placed array: place the first cat in upper-left
-  my $cat = shift @{ $cats };
-  # $self->put_cat_in_place( $cat, $x1, $y1, $placed );
+  my $cat = shift @{ $cats };  # TODO skip if empty!
   $self->put_cat_in_place( $cat, $x1, $y1 );
-
  CAT:
   foreach my $cat ( @{ $cats } ) { 
     my $cat_spots = $self->count_cat_spots( $cat ); # implicit fill_in_cat
@@ -411,6 +425,14 @@ sub put_cat_in_place {
   my ($width, $height) = $self->cat_width_height( $cat ); # implicit fill_in_cat
   my $rect = 
     $self->create_rectangle( $x1, $y1, $width, $height );
+
+  # stash cat stuff in meta info for the rectangle
+  my $rect_meta_info = $rect->meta;
+  $rect_meta_info->{cat}          = $cat->{id};
+  $rect_meta_info->{metacat}      = $cat->{metacat};
+  $rect_meta_info->{cat_name}     = $cat->{name};
+  $rect_meta_info->{metacat_name} = $cat->{mc_name};
+
   push @{ $placed }, $rect;
   my $cat_id = $cat->{ id };
   $self->update_x_y_of_cat( $cat_id, $x1, $y1 );  # save x,y values to database
@@ -502,43 +524,165 @@ sub find_place_for_cat {
   my $self       = shift;
   my $cat        = shift;
   my $placed     = shift || $self->placed;  # aref of rectangles
-
   my $cat_name = $cat->{ name };
   $self->hello_sub("cat: " . $cat->{id} . ' ' . $cat_name);
 
-  # start with the last "placed" rectangle (will pick a place near it)
+  # We start at an already placed rectangle (the "starting rectangle")
+  # and look from there in various directions, extending various lines from the rectangle
+
+  # The starting points require a known rectangle, but the where we look follows
+  # a simple pattern-- so we use a method call to set them up, given a rectangle
+
+  # Stub behavior: to start with we use a single rectangle as start_rects
+  # the last "placed" rectangle (will pick a place near it)
   my $lr = $placed->[ -1 ];  # the "last rectangle"
+  my @start_rects;
+  push @start_rects, $lr;
 
-  my ($x1, $y1, $x2, $y2) =
-    ($lr->x1, $lr->y1, $lr->x2, $lr->y2);
+  ### 1: setup the trials by looping over permutations of start_rects and position/direction templates
+  my @trials;
+  my $swp_cnt = 0; ### DEBUG
+  foreach my $r ( @start_rects ) { 
+      my @sweep_params = $self->setup_sweep_start_points_and_directions( $r, $cat );
+      # say "sweep_params: ", Dumper( \@sweep_params ) if $swp_cnt < 1;
+      print STDERR $self->summarize_sweep_params( \@sweep_params ) if $swp_cnt < 1;
 
-  my ($width, $height) = ( $cat->{ width }, $cat->{ height } );
-
-  my @candidates;
-  push @candidates, $self->sweep_in_direction_for_open_space( $cat, 'e', $x2,          $y1);
-  push @candidates, $self->sweep_in_direction_for_open_space( $cat, 's', $x1,          $y2);
-  push @candidates, $self->sweep_in_direction_for_open_space( $cat, 'w', ($x1-$width), $y1);
-  push @candidates, $self->sweep_in_direction_for_open_space( $cat, 'n', $x1,          ($y1-$height));
-
-  my $param;
-  my $new_rect = shift @candidates; 
-
-  my $min = $self->ungoodness( $lr, $new_rect );  
-
- CANDY:
-  foreach my $candy ( @candidates ) {
-    next CANDY unless $candy;
-    $param = $self->ungoodness( $lr, $candy );
-    if ( $min > $param ) {
-      $min = $param;
-      $new_rect = $candy;
+      foreach my $sp ( @sweep_params ) {
+        push @trials, 
+          { cat          => $cat, # note: has height and width
+            start_rect   => $r,
+            sweep_params => $sp,  # aref to feed to "sweep"
+          };
+      }
     }
+  # say STDERR 'trials: ', Dumper( \@trials );
+
+
+  ### 2: process the trials doing sweeps to get candidates (rectangle objects to evaluate)
+  foreach my $trial (@trials) {
+    my $sweep_params = $trial->{sweep_params};
+    # say STDERR 'sweep_params: ', Dumper( $sweep_params );
+    $trial->{candidate} = 
+      $self->sweep_in_direction_for_open_space( @{ $sweep_params } );
   }
 
-  ($x1, $y1) = ($new_rect->x1, $new_rect->y1);
+  ### 3: get candidate score parameter, choose the minimum
+  # initialize for candy loop
+  my $initial_trial = shift @trials;
+  my $new_rect   = $initial_trial->{candidate};
+  my $start_rect = $initial_trial->{start_rect};
+  my $min = $self->ungoodness( $start_rect, $new_rect );  
+  my $param;
+  CANDY:
+  foreach my $trial ( @trials ) {
+    next CANDY unless ($trial && $trial->{candidate});
+    my $candidate   = $trial->{candidate};
+    my $start_rect  = $trial->{start_rect};
+    my $param = $self->ungoodness( $start_rect, $candidate );  
+    if ( $min > $param ) {
+      $min = $param;
+      $new_rect = $candidate;
+    }
+  }
+  my ($x1, $y1) = ($new_rect->x1, $new_rect->y1);
   $self->farewell();
   return ( $x1, $y1 );
 }
+
+
+
+=item summarize_sweep_params
+
+Example use:
+
+  print $self->summarize_sweep_params( $sweep_params );
+
+=cut
+
+sub summarize_sweep_params {
+  my $self = shift;
+  my $swps = shift;
+
+  # my $summary = '';
+  my $summary = "cat_id\tcat_name\tspot_count\tdirection\tx\ty\n";
+  foreach my $swp ( @{ $swps } ) { 
+    my $cat = $swp->[0];
+    my $cat_id = $cat->{id};
+    my $cat_name = $cat->{name};
+    my $spots  = $cat->{spots};
+    my $spot_count = scalar( @{ $spots } );
+    
+    my $direction = $swp->[1];
+    my $x  = $swp->[2];
+    my $y  = $swp->[3];
+    $summary .= "$cat_id\t$cat_name\t$spot_count\t$direction\t$x\t$y\n";
+  }
+  return $summary;
+}
+
+
+
+=item setup_sweep_start_points_and_directions
+
+Given a starting rectangle (and a cat, just to pass it through)
+this routine follows our current set patterns of directions and
+starting points to look for open space near the start rectangle.
+
+Returns a list suitable for passing to 
+
+  sweep_in_direction_for_open_space
+
+Which is called like so:
+
+  my $candidate_rectangle = 
+     $self->sweep_in_direction_for_open_space( $cat, 'n', $x1, ($y1-$height));
+
+
+Example usage:
+
+  @sweep_params = setup_sweep_start_points_and_directions( $start_rect, $cat );
+
+
+# TODO 
+  # We start at an already placed rectangle (the "starting rectangle")
+  # and look from there in various directions, extending various lines from the rectangle
+
+  # The starting points require a known rectangle, but the where we look follows
+  # a simple pattern-- so we use a method call to set them up, given a rectangle
+
+=cut
+
+sub setup_sweep_start_points_and_directions {
+  my $self = shift;
+  my $r    = shift;
+  my $cat  = shift; 
+
+  # these are the h&w of the new rectangle to be placed
+  my ($width, $height) = ( $cat->{ width }, $cat->{ height } ); 
+
+  my @sweep_params;
+  my ($x1, $y1, $x2, $y2) = ($r->x1, $r->y1, $r->x2, $r->y2);
+  my ($xc, $yc) = map { int } @{ $r->center };
+  # direction and start point templates 
+
+  push @sweep_params,   [$cat, 'e', $x2, $y1];
+  push @sweep_params,   [$cat, 'e', $x2, $yc];
+  push @sweep_params,   [$cat, 's', $x1, $y2];
+  push @sweep_params,   [$cat, 's', $xc, $y2];
+  push @sweep_params,   [$cat, 'w', ($x1-$width), $y1];
+  push @sweep_params,   [$cat, 'w', ($x1-$width), $yc];
+  push @sweep_params,   [$cat, 'n', $x1,          ($y1-$height)];
+  push @sweep_params,   [$cat, 'n', $xc,          ($y1-$height)];
+
+  # Note: there's no point in starting from an overlapping condition
+  # you might as well shuffle over enough so that you know the new 
+  # rectangle will clear the old, hence the width & height adjustments
+  # of the 'w' and 'n' start cases.
+
+  return @sweep_params;
+}
+
+
 
 
 =item ungoodness
@@ -567,6 +711,40 @@ sub ungoodness {
   return $dist;
 }
 
+
+
+=item bloat_up
+
+bloat_up fights the blight of premature encapsulation.
+
+bloat_up (at present) just takes multiple hrefs and fuses all the
+information into one name space, It (optionally) prepends prefix
+names to everything from different sources to prevent collisions
+and not incidentally explain where the info came from.
+
+My example usage:
+
+  my $blobject = $self->bloat_up( 'cat_', $cat, 'rect_', $rect );
+
+  # add fields without changing existing keys
+  my $fatcat = $self->bloat_up( '', $cat, 'rect_', $rect );
+
+=cut
+
+# TODO write a bloat_down routine that removes fields, perhaps moving them into another href
+sub bloat_up {
+  my $self = shift;
+  ### TODO peel options href off of the tail
+  ### TODO alternate version that adds fields to a given href
+  my $new_href;
+  while( my( $prefix, $href ) =  each @_ ) {  # use 5.12, I think
+    while (my ( $key, $value ) = each %{ $href }) {
+      my $new_key = $prefix . $key;
+      $new_href->{ $new_key } = $value;
+    }
+  }
+  return $new_href;
+}
 
 
 
@@ -686,7 +864,7 @@ sub sweep_in_direction_for_open_space {
   my $x1        = shift;
   my $y1        = shift;
 
-  $self->hello_sub("cat: " . $cat->{id} . ' ' . $cat-> {name});
+  $self->hello_sub("$direction from $x1, $y1 for cat: " . $cat->{id} . ' ' . $cat-> {name});
 
   my $placed    = $self->placed;
 
@@ -706,11 +884,13 @@ sub sweep_in_direction_for_open_space {
           $x1++;
         } elsif ( ( $direction eq 'v') || ( $direction eq 's' ) ) { # vertical
           $y1++;
-        } elsif (  $direction eq 'w'  ) { 
-          $x1--;
+        } elsif (  $direction eq 'w'  ) {  
+          return undef if $x1 <= 0;   # skip case going off screen
+          $x1--;  
         }
         elsif (  $direction eq 'n'  ) { 
-          $y1--;
+          return undef if $y1 <= 0;  # skip case going off screen
+          $y1--; 
         }
         next POS;
       } 
@@ -819,7 +999,8 @@ sub generate_layout_metacats_doublezig {
 
   my $cats = $self->list_all_cats('metacats_doublezig'); 
 
-  $self->cat_size_to_layout( $cats );  # populate h & w fields
+# moved up to generate_layout
+#  $self->cat_size_to_layout( $cats );  # populate h & w fields
 
   while ( $cats && scalar( @{ $cats } ) ) { 
     my ( $row_layout, $max_y, $new_x ) =
@@ -1473,6 +1654,11 @@ sub update_layout_for_cat {
   my $width  = shift;
   my $height = shift;
 
+  $x      = sprintf "%.0f", $x;
+  $y      = sprintf "%.0f", $y;
+  $width  = sprintf "%.0f", $width;
+  $height = sprintf "%.0f", $height;
+
   my $sql_update =
     $self->sql_to_update_layout( $cat_id, $x, $y, $width, $height );
 
@@ -1526,6 +1712,9 @@ sub update_x_y_of_cat {
   my $x      = shift;
   my $y      = shift;
   $self->hello_sub("cat_id: $cat_id x: $x, y: $y");
+
+  $x      = sprintf "%.0f", $x;
+  $y      = sprintf "%.0f", $y;
 
   my $sql_update = $self->sql_to_update_x_y();
   #     UPDATE layout SET x_location=?, y_location=? WHERE category = ?
@@ -1609,6 +1798,7 @@ ______END_SKULL_BY_SIZE
       SELECT
         metacat.sortcode  AS mc_ord,
         metacat.name      AS mc_name, 
+        metacat.id        AS metacat,
         category.id       AS id,
         category.name     AS name,
         count(*)          AS cnt
@@ -1620,6 +1810,7 @@ ______END_SKULL_BY_SIZE
       GROUP BY 
         metacat.sortcode,
         metacat.name,
+        metacat.id,
         category.id,
         category.name
       ORDER BY 

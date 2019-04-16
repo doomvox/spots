@@ -110,14 +110,16 @@ geometry.  HashRef.
 
 has coords => ( is => 'ro', isa => ArrayRef, builder => sub{ [] } );  
 
-has x1 => ( is => 'ro', isa => Int, lazy => 1, builder=>'build_x1' );
-has y1 => ( is => 'ro', isa => Int, lazy => 1, builder=>'build_y1' );
-has x2 => ( is => 'ro', isa => Int, lazy => 1, builder=>'build_x2' );
-has y2 => ( is => 'ro', isa => Int, lazy => 1, builder=>'build_y2' );
+has x1 => ( is => 'ro', isa => Num, lazy => 1, builder=>'build_x1' );
+has y1 => ( is => 'ro', isa => Num, lazy => 1, builder=>'build_y1' );
+has x2 => ( is => 'ro', isa => Num, lazy => 1, builder=>'build_x2' );
+has y2 => ( is => 'ro', isa => Num, lazy => 1, builder=>'build_y2' );
 
 # has y_weight => ( is => 'ro', isa => Int, default => 10 );  # 1 rem =~ 10 px , used by "distance" calculation
 # has y_weight => ( is => 'ro', isa => Int, default => 1 );  # comparing rem to px
-has y_weight => ( is => 'ro', isa => Int, default => 12 );  # comparing rem to px
+# has y_weight => ( is => 'ro', isa => Num, default => 12 );  # comparing rem to px
+# has y_weight => ( is => 'ro', isa => Num, default => 9 );  # comparing rem to px
+has y_weight => ( is => 'ro', isa => Num, default => 8.5 );  # comparing rem to px
 
 has center => ( is => 'ro', isa => ArrayRef, lazy => 1, builder=>'calculate_center' ); 
 

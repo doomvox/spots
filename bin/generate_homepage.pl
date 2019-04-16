@@ -62,7 +62,7 @@ use Spots::HomePage;
 # TODO rethink:
 my $base             = shift || "mah_moz_ohm";
 # my $output_directory = shift || cwd();  # First re-think: I hate pwd as default
-my $output_directory = shift || "/home/doom/End/Cave/Spots/Output/Foursies"; # temporary
+my $output_directory = shift || "/home/doom/End/Cave/Spots/Output/Five"; # temporary
 
 mkpath( $output_directory ) unless -d $output_directory;
 

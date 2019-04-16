@@ -8,6 +8,7 @@
 
 SYNOPSIS
 
+  ### TODO see "createdb" shell command
   CREATE DATABASE spots WITH OWNER='postgres';
   psql -d spots -f /home/doom/End/Cave/Spots/bin/spots_schema.sql
 
@@ -89,9 +90,6 @@ ON project
 FOR EACH ROW                              
 EXECUTE PROCEDURE update_revised_timestamp_function();
 
-
-
-
 /*
 insert into spots (url, label) VALUES ('http://slashdot.net', 'slash'), ('http://www.transbaycalendar.org/', 'transbay');
 update spots set url='https://slashdot.net' where label='slash';
@@ -154,6 +152,86 @@ COPY public.layout (id, category, x_location, y_location, height, width) FROM st
 32	32	732	79	\N	\N
 33	33	5	100	\N	\N
 \.
+
+
+COPY public.metacat (id, sortcode, name) FROM stdin;
+1	0010	first
+2	0020	local
+3	0030	news
+4	0040	politics
+5	0050	democracy
+6	0060	infostrut
+7	0070	web
+8	0080	prog
+9	0090	doing
+10	0100	working
+11	0110	fiction
+12	0120	sound
+13	0130	misc
+14	0140	scitech
+15	0150	geoengineer
+\.
+
+COPY public.category (id, name, metacat) FROM stdin;
+43	daily	1
+1	oakland	2
+2	sf	2
+5	weather	2
+6	events	2
+57	san_francisco	2
+58	oakland_talk	2
+59	oakland_news	2
+7	news	3
+14	world	3
+36	politics	4
+44	politics_data	4
+45	politics_left	4
+46	politics_one_left	4
+47	politics_mid	4
+48	politics_libertarian	4
+42	electoral_integrity	5
+4	search	6
+9	talk	6
+15	industry	6
+27	cog	6
+12	web	7
+16	perl	8
+17	postgres	8
+18	mysql	8
+19	emacs	8
+33	linux	8
+34	perl6	8
+35	rlang	8
+37	prog	8
+50	perl_news	8
+51	perl_monks	8
+49	make_perl	9
+60	make_code	9
+61	git	9
+3	jobs	10
+10	comics	11
+20	lit	11
+21	skiffy	11
+22	manga	11
+23	otaku	11
+24	kdrama	11
+25	music	12
+26	econ	12
+30	radio	12
+28	wonk	13
+29	art	13
+31	philos	13
+41	sex	13
+11	tech	14
+13	science	14
+32	space	14
+8	nuclear	15
+38	enviro	15
+39	globwarm	15
+40	energy	15
+\.
+
+
 
 COPY public.spots (id, url, label, static, title, description, added, revised, live, category) FROM stdin;
 1	http://museumca.org/	oakmus	\N	\N	\N	2019-03-15 18:26:48.260727-07	2019-03-15 18:26:48.260727-07	\N	1
