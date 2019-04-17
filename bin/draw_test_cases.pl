@@ -54,6 +54,16 @@ GetOptions ("d|debug"    => \$DEBUG,
 { no warnings 'once'; $DB::single = 1; }
 
 
+use FindBin qw( $Bin );
+use lib "$Bin/../t/lib/";
+use Spots::Rectangle::TestData qw( :all );
+
+print Dumper( \@is_overlapping_cases ), "\n";
+
+my $output_loc = "$Bin/../t/dat/t17";
+mkpath( $output_loc ) unless -d $output_loc;
+
+draw_cases( \@is_overlapping_cases, $output_loc );
 
 
 

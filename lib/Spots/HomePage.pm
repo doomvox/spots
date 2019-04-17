@@ -133,10 +133,22 @@ has output_directory => (is => 'rw', isa => Str,
 # default values empirically determined
 # rem per line
 has vertical_scale     => (is => 'rw', isa => Num,  default => 1.17 );  
+# has vertical_scale     => (is => 'rw', isa => Num,  default => 1.2 );  
 # px per char
 has horizontal_scale   => (is => 'rw', isa => Num,  default => 9    );  
+# has horizontal_scale   => (is => 'rw', isa => Num,  default => 12    );  
+
 has vertical_padding   => (is => 'rw', isa => Num,  default => 0.6 );  # rem
+# has vertical_padding   => (is => 'rw', isa => Num,  default => 2 );  # rem
 has horizontal_padding => (is => 'rw', isa => Int,  default => 2   );  # px 
+# has horizontal_padding => (is => 'rw', isa => Int,  default => 10   );  # px 
+
+# EXPERIMENTAL when placing a new rectangle shove over from where we think it should go
+# has vertical_shoveover   => (is => 'rw', isa => Num,  default => 2  );  # rem
+# has horizontal_shoveover => (is => 'rw', isa => Int,  default => 10  );  # px 
+ has vertical_shoveover   => (is => 'rw', isa => Num,  default => 0  );  # rem
+ has horizontal_shoveover => (is => 'rw', isa => Int,  default => 0  );  # px 
+
 
 has initial_y          => (is => 'rw', isa => Int,  default => 0    ); # rem 
 has initial_x          => (is => 'rw', isa => Int,  default => 5    ); # px
@@ -361,7 +373,9 @@ sub generate_layout {
 
 =item generate_layout_metacats_fanout
 
-TODO roughly: start in the upper left corner, and move outwards
+TODO these remarks are totally stale and bear little resemblence to what this does
+
+roughly: start in the upper left corner, and move outwards
 from there, in "random" directions, using a collision detection
 routine to tighten up placement.
 
@@ -378,6 +392,7 @@ sub generate_layout_metacats_fanout {
   my $cats = shift || $self->list_all_cats(); 
   my $cat_count = scalar( @{ $cats } );
   $self->hello_sub("cat_count: $cat_count");
+
   my ($x1, $y1) = ($self->initial_x, $self->initial_y);
   $self->clear_placed;
   my $placed = $self->placed;
@@ -393,7 +408,9 @@ sub generate_layout_metacats_fanout {
     $self->put_cat_in_place( $cat, $x1, $y1 );
   }
   my $place_count = scalar( @{ $placed } );
-  ($DEBUG) && say STDERR "place_cats have placed: $place_count \n" .  Dumper( $placed );
+  ($DEBUG) &&
+    say STDERR "!!! count of placed: $place_count, these are them:\n" .
+    Dumper( $placed );
   $self->farewell();
   return $place_count; 
 }
@@ -417,7 +434,9 @@ sub put_cat_in_place {
   my $cat     = shift;
   my $x1      = shift;
   my $y1      = shift;
-  my $placed  = shift  || $self->placed;
+#  my $placed  = shift  || $self->placed;
+  my $placed  = $self->placed;
+  $self->hello_sub("placed count: " . scalar(@{$placed}) );
 
   #  newly choosen x, y vals added to the $cat
   ( $cat->{x}, $cat->{y} ) = ($x1, $y1);
@@ -435,7 +454,10 @@ sub put_cat_in_place {
 
   push @{ $placed }, $rect;
   my $cat_id = $cat->{ id };
-  $self->update_x_y_of_cat( $cat_id, $x1, $y1 );  # save x,y values to database
+  my $ret = 
+    $self->update_x_y_of_cat( $cat_id, $x1, $y1 );  # save x,y values to database
+  $self->farewell();
+  return $ret;
 }
 
 =item count_cat_spots
@@ -535,9 +557,19 @@ sub find_place_for_cat {
 
   # Stub behavior: to start with we use a single rectangle as start_rects
   # the last "placed" rectangle (will pick a place near it)
-  my $lr = $placed->[ -1 ];  # the "last rectangle"
+
+#   my $lr = $placed->[ -1 ];  # the "last rectangle"
+#   my @start_rects;
+#   push @start_rects, $lr;
+
+#  my @start_rects = @{ $placed }[ -3 .. -1 ];
+
   my @start_rects;
-  push @start_rects, $lr;
+  push @start_rects, $placed->[ -1 ];
+  push @start_rects, $placed->[ -2 ] if defined $placed->[ -2 ];
+#  push @start_rects, $placed->[ -3 ] if defined $placed->[ -3 ];
+
+# (Getting can't call method on undefs errors with more than one look-back)
 
   ### 1: setup the trials by looping over permutations of start_rects and position/direction templates
   my @trials;
@@ -557,13 +589,15 @@ sub find_place_for_cat {
     }
   # say STDERR 'trials: ', Dumper( \@trials );
 
-
   ### 2: process the trials doing sweeps to get candidates (rectangle objects to evaluate)
+ TRIAL:
   foreach my $trial (@trials) {
     my $sweep_params = $trial->{sweep_params};
     # say STDERR 'sweep_params: ', Dumper( $sweep_params );
-    $trial->{candidate} = 
+    my $ret = 
       $self->sweep_in_direction_for_open_space( @{ $sweep_params } );
+    next TRIAL unless $ret;
+    $trial->{candidate} = $ret;
   }
 
   ### 3: get candidate score parameter, choose the minimum
@@ -603,19 +637,20 @@ sub summarize_sweep_params {
   my $self = shift;
   my $swps = shift;
 
-  # my $summary = '';
-  my $summary = "cat_id\tcat_name\tspot_count\tdirection\tx\ty\n";
+  my @column_heads = ('cat_id', 'cat_name', 'spots', 'dir', 'x', 'y');
+  my $fmt = "%6s%20s%8s%5s%8s%8s\n";
+  my $heading = sprintf $fmt, @column_heads;
+  my $summary = $heading;
   foreach my $swp ( @{ $swps } ) { 
-    my $cat = $swp->[0];
-    my $cat_id = $cat->{id};
-    my $cat_name = $cat->{name};
-    my $spots  = $cat->{spots};
+    my $cat        = $swp->[0];
+    my $cat_id     = $cat->{id};
+    my $cat_name   = $cat->{name};
+    my $spots      = $cat->{spots};
     my $spot_count = scalar( @{ $spots } );
-    
-    my $direction = $swp->[1];
-    my $x  = $swp->[2];
-    my $y  = $swp->[3];
-    $summary .= "$cat_id\t$cat_name\t$spot_count\t$direction\t$x\t$y\n";
+    my $direction  = $swp->[1];
+    my $x          = $swp->[2];
+    my $y          = $swp->[3];
+    $summary .= sprintf $fmt, $cat_id, $cat_name, $spot_count, $direction, $x, $y;
   }
   return $summary;
 }
@@ -659,25 +694,45 @@ sub setup_sweep_start_points_and_directions {
 
   # these are the h&w of the new rectangle to be placed
   my ($width, $height) = ( $cat->{ width }, $cat->{ height } ); 
+  say STDERR "^^^ width: $width, height: $height";
 
   my @sweep_params;
   my ($x1, $y1, $x2, $y2) = ($r->x1, $r->y1, $r->x2, $r->y2);
-  my ($xc, $yc) = map { int } @{ $r->center };
-  # direction and start point templates 
+  # my ($xc, $yc) = map { int } @{ $r->center };
+  my ($xc, $yc) = map { sprintf( "%.f", $_) } @{ $r->center };
 
+   say STDERR "~~~ x1:$x1 y1:$y1 x2:$x2 y2:$y2 xc:$xc yc:$yc";
+#   say STDERR "WHAT X: x1 less width: ", ($x1-$width) ;
+#   say STDERR "WHAT Y: y1 less height: ", ($y1-$height) ;
+
+  my $x1_less_w = sprintf( "%.f", ($x1-$width) );
+  my $y1_less_h = sprintf( "%.f", ($y1-$height));
+
+#   say STDERR "THIS X: x1 less width: ", $x1_less_w;
+#   say STDERR "THIS Y: y1 less height: ", $y1_less_h;
+
+  # filling in the direction and start point templates 
   push @sweep_params,   [$cat, 'e', $x2, $y1];
   push @sweep_params,   [$cat, 'e', $x2, $yc];
   push @sweep_params,   [$cat, 's', $x1, $y2];
   push @sweep_params,   [$cat, 's', $xc, $y2];
-  push @sweep_params,   [$cat, 'w', ($x1-$width), $y1];
-  push @sweep_params,   [$cat, 'w', ($x1-$width), $yc];
-  push @sweep_params,   [$cat, 'n', $x1,          ($y1-$height)];
-  push @sweep_params,   [$cat, 'n', $xc,          ($y1-$height)];
+  push @sweep_params,   [$cat, 'w', $x1_less_w, $y1] unless $x1_less_w<-1;
+  push @sweep_params,   [$cat, 'w', $x1_less_w, $yc] unless $x1_less_w<-1;
+  push @sweep_params,   [$cat, 'n', $x1,        $y1_less_h] unless $y1_less_h<-1;
+  push @sweep_params,   [$cat, 'n', $xc,        $y1_less_h] unless $y1_less_h<-1;
 
+  #                                       ^ 
+  #                              .--------'
+  #                             /
+  #                            /
+  #                           /
   # Note: there's no point in starting from an overlapping condition
   # you might as well shuffle over enough so that you know the new 
   # rectangle will clear the old, hence the width & height adjustments
   # of the 'w' and 'n' start cases.
+
+  # But if that sends us off of the board into the negative integers, 
+  # we might as well skip that case now, hence the "unless" checks.
 
   return @sweep_params;
 }
@@ -707,10 +762,35 @@ sub ungoodness {
   my $self = shift;
   my $r1 = shift;
   my $r2 = shift;
-  my $dist = $r1->distance( $r2 );
+  # my $dist = $r1->distance( $r2 );
+  my $dist = $self->distance( $r1, $r2 );
+
   return $dist;
 }
 
+
+=item distance
+
+Rather than use the Rectangle.pm distance sub, try one of our own
+we can hack to our own purposes (perhaps).
+
+=cut
+
+sub distance {
+  my $self = shift;
+  my $r1 = shift;
+  my $r2 = shift;
+  my $y_weight = 11.5;
+
+  my ($xc1, $yc1) = @{ $r1->center };
+  my ($xc2, $yc2) = @{ $r2->center };
+
+  my ($x1, $y1) = ($r1->x1, $r1->y1);
+  my ($x2, $y2) = ($r1->x2, $r1->y2);
+
+  my $distance = sqrt( ($xc1 - $xc2)**2 + (($yc1 - $yc2)*$y_weight)**2 );
+  return $distance;
+}
 
 
 =item bloat_up
@@ -873,8 +953,10 @@ sub sweep_in_direction_for_open_space {
   my $new_rect;
  RECT:
   while( 1 ) { 
-    my $x2 = $x1 + $cat->{ width  };
-    my $y2 = $y1 + $cat->{ height };
+    my $x2 = sprintf( "%.f",  ($x1 + $cat->{ width  }));
+    # my $y2 = sprintf( "%.0d", ($y1 + $cat->{ height })); 
+    my $y2 = sprintf( "%.f", ($y1 + $cat->{ height }));
+
     my $rect = Spots::Rectangle->new({ coords => [ $x1, $y1, $x2, $y2 ] });  
 
   POS: 
@@ -900,9 +982,50 @@ sub sweep_in_direction_for_open_space {
     last RECT;
   }
   my $mess = defined( $new_rect ) ?  "returning rectangle" : "returning undef";
+
+  $new_rect = $self->shoveover_rect( $new_rect );
+
   $self->farewell( $mess );
   return $new_rect;
 }
+
+
+
+=item shoveover_rect
+
+Example usage:
+
+  my $new_rect = $self->shoveover_rect( $new_rect );
+
+=cut
+
+sub shoveover_rect {
+  my $self = shift;
+  my $r    = shift;
+
+  my   $vertical_shoveover   = $self->vertical_shoveover;
+  my   $horizontal_shoveover = $self->horizontal_shoveover;
+
+  my ($x1, $y1, $x2, $y2) = ($r->x1, $r->y1, $r->x2, $r->y2);
+
+  $x1 += $horizontal_shoveover;
+  $x2 += $horizontal_shoveover;
+  $y1 += $vertical_shoveover;
+  $y2 += $vertical_shoveover;
+
+# This won't work, because they're 'ro' fields
+#   $r->x1( $x1 );
+#   $r->y1( $y1 );
+#   $r->x2( $x2 );
+#   $r->y2( $y2 );
+
+  my $meta = $r->meta;
+  my $new_rect = Spots::Rectangle->new({ coords => [ $x1, $y1, $x2, $y2 ],
+                                         meta   => $meta
+                                       });  
+  return $new_rect;
+}
+
 
 
 
@@ -999,8 +1122,8 @@ sub generate_layout_metacats_doublezig {
 
   my $cats = $self->list_all_cats('metacats_doublezig'); 
 
-# moved up to generate_layout
-#  $self->cat_size_to_layout( $cats );  # populate h & w fields
+  # moved up to generate_layout
+  #  $self->cat_size_to_layout( $cats );  # populate h & w fields
 
   while ( $cats && scalar( @{ $cats } ) ) { 
     my ( $row_layout, $max_y, $new_x ) =
@@ -1011,7 +1134,7 @@ sub generate_layout_metacats_doublezig {
     }
     $x = $self->initial_x;           # px 
     $y = $max_y + $self->y_gutter;   # rem
-#    say STDERR  "x: $x, y: $y"
+  #    say STDERR  "x: $x, y: $y"
   }
   # $self->farewell();
 }
@@ -1342,7 +1465,9 @@ sub cat_dimensions {
 
   my $height_raw =   $spot_count * $vertical_scale   + $vertical_padding;
   my $height = sprintf( "%.1f", $height_raw );
-  my $width  =  int( $max_chars  * $horizontal_scale + $horizontal_padding ); 
+#  my $width  = int( $max_chars  * $horizontal_scale + $horizontal_padding ); 
+  my $width  = sprintf( "%.0d", ( $max_chars  * $horizontal_scale + $horizontal_padding )); 
+#  my $width  = sprintf( "%.f", ( $max_chars  * $horizontal_scale + $horizontal_padding )); 
   return ($height, $width);
 }
 
@@ -1386,8 +1511,8 @@ sub generate_layout_by_size {
     my $vertical_scale   = $self->vertical_scale;    # 1.20 rem per line
     my $horizontal_scale = $self->horizontal_scale;  # 9 px per char
     
-    my $height =  $spot_count * $vertical_scale ;    # height for lines (rem)
-    my $width  =  $max_chars  * $horizontal_scale ;  # width for chars (px)
+    my $height =  sprintf "%.1f", ($spot_count * $vertical_scale) ; # height for lines (rem)
+    my $width  =  sprintf "%.0f", ($max_chars  * $horizontal_scale) ;  # width for chars (px)
 
     $self->update_layout_for_cat( $cat_id, $x, $y, $width, $height );
 
@@ -1657,7 +1782,7 @@ sub update_layout_for_cat {
   $x      = sprintf "%.0f", $x;
   $y      = sprintf "%.0f", $y;
   $width  = sprintf "%.0f", $width;
-  $height = sprintf "%.0f", $height;
+  $height = sprintf "%.1f", $height;
 
   my $sql_update =
     $self->sql_to_update_layout( $cat_id, $x, $y, $width, $height );
