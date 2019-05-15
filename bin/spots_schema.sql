@@ -86,7 +86,7 @@ CREATE TABLE projects (
 
 CREATE TRIGGER row_mod_on_spot_trigger
 BEFORE UPDATE                             
-ON project
+ON projects
 FOR EACH ROW                              
 EXECUTE PROCEDURE update_revised_timestamp_function();
 

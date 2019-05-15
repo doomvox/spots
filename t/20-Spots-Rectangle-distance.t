@@ -33,9 +33,6 @@ ok(1, "Traditional: If we made it this far, we're ok.");
 {  my $subname = "distance";
    my $test_name = "Testing $subname";
 
-   # my $obj = Spots::Rectangle->new();
-   # $obj->distance();
-
    my $rect_a = Spots::Rectangle->new({ 
                 coords => [ 10, 15, 20, 27 ] 
               });  

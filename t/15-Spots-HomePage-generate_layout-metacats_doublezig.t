@@ -66,8 +66,10 @@ ok(1, "Traditional: If we made it this far, we're ok.");
    is( $spot_count, $cnt_33, "$test_name: count of spots in $cat_id is $cnt_33" );
 
 ## TODO verify that these numbers seem sensible (just freezing results)
-   is( $x, 521,  "$test_name: x coord of $cat_id" );  
-   is( $y, 29, "$test_name: y coord of $cat_id" );
+   # is( $x, 521,  "$test_name: x coord of $cat_id" );  
+   is( $x, 293,  "$test_name: x coord of $cat_id" );  
+   # is( $y, 29, "$test_name: y coord of $cat_id" );
+   is( $y, 28, "$test_name: y coord of $cat_id" );
    is( $w, 110, "$test_name: width of $cat_id" );
    is( $h,  13.5, "$test_name: height of $cat_id" );
 

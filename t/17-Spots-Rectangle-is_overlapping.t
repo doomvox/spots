@@ -37,14 +37,6 @@ ok(1, "Traditional: If we made it this far, we're ok.");
 {  my $subname   = "is_overlapping";
    my $test_name = "Testing $subname";
 
-#   my $r1_coords = [ 10, 10, 20, 20 ];
-
-#   my $rect1 = Spots::Rectangle->new( coords=>$r1_coords );
-
-#    my @cases = (
-#               );
-
-#   foreach my $case ( @cases ) { 
   foreach my $case ( @is_overlapping_cases ) { 
      my $r1_coords = $case->{ r1_coords };
      my $r2_coords = $case->{ r2_coords };

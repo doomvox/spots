@@ -48,14 +48,12 @@ BEGIN {
  require Exporter;
  @ISA = qw(Exporter);
  %EXPORT_TAGS = ( 'all' => [
- # TODO Add names of items to export here.
- qw(
-        @is_overlapping_cases
-
-        draw_cases
-  ) ] );
-  # The above allows declaration	use Spots::Rectangle::TestData ':all';
-
+                            # TODO Add names of items to export here.
+                            qw(
+                                @is_overlapping_cases
+                                @edge_distance_cases 
+                                draw_cases
+                             ) ] );
   @EXPORT_OK = ( @{ $EXPORT_TAGS{'all'} } );
   @EXPORT = qw(  ); # items to export into callers namespace by default (avoid this!)
 #  $DB::single = 1;
@@ -79,108 +77,172 @@ Test cases for t/17-Spots-Rectangle-is_overlapping.t an array of hases with keys
 our @is_overlapping_cases =
   (
    {
-    r1_coords => [ 10, 10, 20, 20 ],
-    r2_coords => [ 10, 10, 20, 20 ],
+    r1_coords => [ 100, 100, 200, 200 ],
+    r2_coords => [ 100, 100, 200, 200 ],
     expected  => 1,             # true, overlap
     name => "totally overlapped: second is same as the first",
    },
    {
-    r1_coords => [ 10, 10, 20, 20 ],
-    r2_coords => [ 10, 10, 25, 25 ],
+    r1_coords => [ 100, 100, 200, 200 ],
+    r2_coords => [ 100, 100, 250, 250 ],
     expected  => 1,             # true, overlap
     name => "totally overlapped: second shares x1 point, but is taller and wider",
    },
 
    {
-    r1_coords => [ 10, 10, 20, 20 ],
-    r2_coords => [ 10, 8, 20, 22 ],
+    r1_coords => [ 100, 100, 200, 200 ],
+    r2_coords => [ 100, 80, 200, 220 ],
     expected  => 1,             # true, overlap
     name => "overlapped: second taller but shares left & right edges",
    },
 
    {
-    r1_coords => [ 10, 10, 20, 20 ],
-    r2_coords => [ 20, 20, 20, 20 ],
+    r1_coords => [ 100, 100, 200, 200 ],
+    r2_coords => [ 200, 200, 200, 200 ],
     expected  => 1,             # true, overlap
     name => "second is degenerate point on top of x2,y2",
    },
-
    {
-    r1_coords => [ 10, 10, 20, 20 ],
-    r2_coords => [ 21, 21, 21, 21 ],
+    r1_coords => [ 100, 100, 200, 200 ],
+    r2_coords => [ 210, 210, 210, 210 ],
     expected  => 0,             # true, overlap
     name => "second is degenerate point but just near x2,y2",
    },
    {
-    r1_coords => [ 10, 10, 20, 20 ],
-    r2_coords => [ 20, 20, 25, 15 ],
+    r1_coords => [ 100, 100, 200, 200 ],
+    r2_coords => [ 200, 200, 250, 250 ],
     expected  => 0,             # false, no-overlap
     name => "no-overlap: second is diagonally adjacent from first",
    },
    {
-    r1_coords => [ 10, 10, 20, 20 ],
-    r2_coords => [ 5, 12, 12, 18 ],
+    r1_coords => [ 100, 100, 200, 200 ],
+    r2_coords => [ 50, 120, 120, 180 ],
     expected  => 1,             # true, overlap
     name => "overlap: second pushes through left side of first",
    },
    {
-    r1_coords => [ 10, 10, 20, 20 ],
-    r2_coords => [ 19, 15, 30, 25 ],
+    r1_coords => [ 100, 100, 200, 200 ],
+    r2_coords => [ 190, 150, 300, 250 ],
     expected  => 1,             # true, overlap
     name => "overlap: second has upper-left corner over lower-right of first",
    },
    {
-    r1_coords => [ 10, 10, 20, 20 ],
-    r2_coords => [ 12, 18, 15, 30 ],
+    r1_coords => [ 100, 100, 200, 200 ],
+    r2_coords => [ 120, 180, 150, 300 ],
     expected  => 1,             # true, overlap
     name => "overlap: second pushes through bottom of the first",
    },
    {
-    r1_coords => [ 10, 10, 20, 20 ],
-    r2_coords => [ 10, 30, 20, 40 ],
+    r1_coords => [ 100, 100, 200, 200 ],
+    r2_coords => [ 100, 300, 200, 400 ],
     expected  => 0,             # false, no-overlap
     name => "no-overlap: second is below the first",
    },
    {
-    r1_coords => [ 10, 10, 20, 20 ],
-    r2_coords => [ 25, 10, 45, 20 ],
+    r1_coords => [ 100, 100, 200, 200 ],
+    r2_coords => [ 250, 100, 450, 200 ],
     expected  => 0,             # false, no-overlap
     name => "no-overlap: second is to the right of 1st",
    },
    {
-    r1_coords => [ 10, 10, 20, 20 ],
-    r2_coords => [ 10, 20, 20, 40 ],
+    r1_coords => [ 100, 100, 200, 200 ],
+    r2_coords => [ 100, 200, 200, 400 ],
     expected  => 1,             # true, overlap
     name => "overlap: top edge coincident, 2nd below 1st",
    },
 
    {
-    r1_coords => [ 10, 10, 20, 20 ],
-    r2_coords => [ 20, 20, 30, 30 ],
+    r1_coords => [ 100, 100, 200, 200 ],
+    r2_coords => [ 200, 200, 300, 300 ],
     expected  => 1,             # true, overlap
     name => "overlap: upper-right corner same as lower-left of 1st",
    },
    {
-    r1_coords => [ 10, 10, 20, 20 ],
-    r2_coords => [ 11, 11, 19, 19 ],
+    r1_coords => [ 100, 100, 200, 200 ],
+    r2_coords => [ 110, 110, 190, 190 ],
     expected  => 1,             # true, overlap
     name => "totally overlapped: second is inside of the first",
    },
 
    {
-    r1_coords => [ 10, 10, 20, 20 ],
-    r2_coords => [ 8, 8, 22, 22 ],
+    r1_coords => [ 100, 100, 200, 200 ],
+    r2_coords => [ 80, 80, 220, 220 ],
     expected  => 1,             # true, overlap
     name => "totally overlapped: second is outside of the first",
    },
 
    {
-    r1_coords => [ 10, 10, 20, 20 ],
-    r2_coords => [ 10, 10, 20, 20 ],
+    r1_coords => [ 100, 100, 200, 200 ],
+    r2_coords => [ 100, 100, 200, 200 ],
     expected  => 1,             # true, overlap
     name => "totally overlapped: second is same as the first",
    },
   );
+
+
+=item @edge_distance_cases 
+
+Test cases for 
+   t/23-Spots-Rectangle-edge_distance.t
+
+An array of hases with keys:
+
+    r1_coords
+    r2_coords
+    expected 
+    name 
+
+the r*_coords are arefs of four integers, representing 
+the upper-left and lower-right corners of the rectangle:
+
+   [ x1, y1, x2, y2 ]
+
+
+=cut 
+
+our @edge_distance_cases =
+  (
+   {
+    r1_coords => [ 10, 15, 20, 27 ],
+    r2_coords => [ 35, 55, 50, 70 ],
+    expected  => 31.8, # empirical, estimated around 30
+    name => "second below and to the right (same as 1st 20-Spots-Rectangle-distance.t case)",
+   },
+
+   {
+    r1_coords => [ 100, 150, 200, 270 ],
+    r2_coords => [ 350, 550, 500, 700 ],
+    expected  => 317.6, # empirical, estimated was 318.0
+    name => "second below and to the right (100x)",
+   },
+
+   {
+    r1_coords => [ 50, 75, 100, 135 ],
+    r2_coords => [ 175, 275, 250, 350 ],
+    expected  => 158.8, # empirical, estimated was 150
+    name => "second below and to the right (50x)",
+   },
+
+   {
+    r1_coords => [ 50, 75, 100, 135 ],
+    r2_coords => [ 40, 275, 110, 350 ],
+    expected  => 140.4, # empirical, estimated was 150
+    name => "second roughtly below",
+   },
+
+   {
+    r1_coords => [ 50, 75, 100, 135 ],
+    r2_coords => [ 40, 135, 110, 210 ],
+    expected  => 10.0, # empirical
+    name => "second right on bottom edge, but because wider, we don't quite get 0",
+   },
+
+
+  );
+
+
+
+
 
 =back 
 
@@ -197,6 +259,9 @@ our @is_overlapping_cases =
 =item draw_cases
 
 =cut
+
+# GD notes (*.org this?)
+# font names string uses are barewords, maybe subs: gdMediumBoldFont, gdSmallFont, gdLargeFont gdLargeFont
 
 sub draw_cases {
   my $cases      = shift || \@is_overlapping_cases;
@@ -219,21 +284,59 @@ sub draw_cases {
     binmode $imfh;
 
     # create a new image
-    my $im = new GD::Image( 300, 300 );
+    my $im = new GD::Image( 500, 500 );
  
     # allocate some colors
     my $white = $im->colorAllocate( 255, 255, 255 );
     my $black = $im->colorAllocate(   0,   0,   0 );       
     my $red   = $im->colorAllocate( 255,   0,   0 );      
     my $blue  = $im->colorAllocate(   0,   0, 255 );
+
+    my $r1_color = $blue;
+    my $r2_color = $red;
  
-    # make the background transparent and interlaced
-    $im->transparent( $white );
-    $im->interlaced( 'true' );
+#     # make the background transparent and interlaced
+#     $im->transparent( $white );
+#     $im->interlaced( 'true' );
+
+    # offsets for point labels (left, right, up, down)
+    my @r1_off = (-30, -15, 10, 10);
+    my @r2_off = (-60, -25, 25, 25);
+
+    my ($x1off, $y1off, $x2off, $y2off) = @r1_off;
+    my ($xt, $yt); # text label location
 
     # Draw rectangles
-    $im->rectangle( $r1x1, $r1y1, $r1x2, $r1y2, $blue );
-    $im->rectangle( $r2x1, $r2y1, $r2x2, $r2y2, $black ); 
+    my $d = 12; # diameter of circles around points
+    $im->setThickness( 3 );
+    $im->rectangle( $r1x1, $r1y1, $r1x2, $r1y2, $r1_color );
+    # draw circles around corner points
+    $im->arc($r1x1,$r1y1,$d,$d,0,360,$r1_color);
+    $im->arc($r1x2,$r1y2,$d,$d,0,360,$r1_color);
+
+    ($xt, $yt) = ( $r1x1 + $x1off, $r1y1 + $y1off );
+    $im->string( gdMediumBoldFont, $xt, $yt, "($r1x1, $r1y1)", $r1_color );
+
+    ($xt, $yt) = ( $r1x2 + $x2off, $r1y2 + $y2off );
+    $im->string( gdMediumBoldFont, $xt, $yt, "($r1x2, $r1y2)", $r1_color );
+
+    ($x1off, $y1off, $x2off, $y2off) = @r2_off;
+    $im->rectangle( $r2x1, $r2y1, $r2x2, $r2y2, $r2_color ); 
+    # draw circles around corner points
+    $d = 8; # diameter of circles around points
+    $im->arc($r2x1,$r2y1,$d,$d,0,360,$r2_color);
+    $im->arc($r2x2,$r2y2,$d,$d,0,360,$r2_color);
+
+
+    ($xt, $yt) = ( $r2x1 + $x1off, $r2y1 + $y1off );
+    $im->string( gdMediumBoldFont, $xt, $yt, "($r2x1, $r2y1)", $r2_color );
+
+    ($xt, $yt) = ( $r2x2 + $x2off, $r2y2 + $y2off );
+    $im->string( gdMediumBoldFont, $xt, $yt, "($r2x2, $r2y2)", $r2_color );
+
+    ($xt, $yt) = ( 5, 430 );
+    $im->string( gdMediumBoldFont, $xt, $yt, "$case_name: $expected", $black );
+
  
     # Convert the image to PNG and write it to file.
     print { $imfh } $im->png;

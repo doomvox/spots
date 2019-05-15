@@ -77,6 +77,8 @@ use 5.10.0;
 use Carp;
 use Data::Dumper;
 
+use List::Util qw( min );
+
 =item new
 
 Creates a new Spots::Rectangle object.
@@ -116,10 +118,10 @@ has x2 => ( is => 'ro', isa => Num, lazy => 1, builder=>'build_x2' );
 has y2 => ( is => 'ro', isa => Num, lazy => 1, builder=>'build_y2' );
 
 # has y_weight => ( is => 'ro', isa => Int, default => 10 );  # 1 rem =~ 10 px , used by "distance" calculation
-# has y_weight => ( is => 'ro', isa => Int, default => 1 );  # comparing rem to px
+has y_weight => ( is => 'ro', isa => Int, default => 1 );  # comparing rem to px
 # has y_weight => ( is => 'ro', isa => Num, default => 12 );  # comparing rem to px
 # has y_weight => ( is => 'ro', isa => Num, default => 9 );  # comparing rem to px
-has y_weight => ( is => 'ro', isa => Num, default => 8.5 );  # comparing rem to px
+# has y_weight => ( is => 'ro', isa => Num, default => 8.5 );  # comparing rem to px
 
 has center => ( is => 'ro', isa => ArrayRef, lazy => 1, builder=>'calculate_center' ); 
 
@@ -155,6 +157,35 @@ sub build_y2 {
 }
 
 { no warnings 'once'; $DB::single = 1; }
+
+
+
+=item width
+
+=cut
+
+sub width {
+  my $self = shift;
+  my $x1 = $self->x1;
+  my $x2 = $self->x2;
+  my $width = ($x2 - $x1);
+  return $width;
+}
+
+
+=item height
+
+=cut
+
+sub height {
+  my $self = shift;
+  my $y1 = $self->y1;
+  my $y2 = $self->y2;
+  my $height = ($y2 - $y1);
+  # TODO should y_weight be applied here?
+  return $height;
+}
+
 
 
 =item calculate_center
@@ -196,19 +227,17 @@ sub stash {
   return $meta;
 }
 
-
-
-=item hsats
+=item unstash
 
 Retrieve something stashed in meta under given key.
 
 Example use:
 
-  my $value = $self->hsats( $key );
+  my $value = $self->unstash( $key );
 
 =cut
 
-sub hsats {
+sub unstash {
   my $self  = shift;
   my $key   = shift;
 
@@ -221,7 +250,7 @@ sub hsats {
 
 =item metacat
 
-Retrieve the 'metacat' stashed in the rectangle meta info.  From Metaluna.
+Retrieve the 'metacat' stashed in the rectangle meta info (from metaluna).
 
 A convenience routine for Spots::HomePage.
 
@@ -257,6 +286,11 @@ sub cat {
 
 =item distance
 
+A center-to-center distance between two rectangles, this one and
+the one given as an argument.
+
+   $d = $self->distance( $other );
+
 
 =cut
 
@@ -271,6 +305,94 @@ sub distance {
   my $distance = sqrt( ($xs - $xo)**2 + ($ys*$y_weight - $yo*$y_weight)**2 );
   return $distance;
 }
+
+
+
+
+=item edge_distance
+
+Distance between the edges of two rectangles, presumably non-overlapping, 
+though that is not checked here. 
+
+Returns the rms of the minimum absolute deltas of x and y.
+
+
+                                      delta-y candidates:
+                                      
+  A                                 |   
+  (x1, y1)                          v   
+    o------------o                 ---         ---                
+    |            |    B            Ay1-         ^ 
+    |            |    (x1, y1)       By1        |       
+    |            |     o-------o   ---          |       ---
+    |            |     |       |    ^          Ay1-By2   ^ 
+    |            |     |       |    |    |      |        |
+    |            |     |       |         v      |       By1-Ay2 
+    o------------o     |       |       -----    |        |        
+            (x2, y2)   |       |      Ay2-By2   v        V         
+                       o-------o       -----   ---      ---
+                              (x2, y2)   ^      
+                                         |      
+                 |<--->|                        
+                           
+                 min abs             Here the min abs is 
+                 delta-x =             Ay2-By2
+                  Ax2 - Bx1
+
+
+This is a nice attempt, but a complete flop:
+
+
+  o----o o---------o
+  |    | |         |   seems to  always go this way --->
+  |    | |         |   I think: the delta-y of top edge always dominates 
+  o----o |         |   the low-end.
+         o---------o
+
+
+=cut
+
+sub edge_distance {
+  my $self  = shift;
+  my $other = shift;
+  my $y_weight = shift || $self->y_weight;
+
+  my $d = $self->distance( $other );
+
+  my $Ax1 = $self->x1;
+  my $Ax2 = $self->x2;
+  my $Ay1 = $self->y1;
+  my $Ay2 = $self->y2;
+
+  my $Bx1 = $other->x1;
+  my $Bx2 = $other->x2;
+  my $By1 = $other->y1;
+  my $By2 = $other->y2;
+
+  my $delta_x = 
+    min(
+      abs( $Ax1-$Bx1 ),
+      abs( $Ax2-$Bx2 ),
+      abs( $Ax1-$Bx2 ),
+      abs( $Ax2-$Bx1 )
+      );
+
+  my $delta_y = 
+    min(
+      abs( $Ay1-$By1 ),
+      abs( $Ay2-$By2 ),
+      abs( $Ay1-$By2 ),
+      abs( $Ay2-$By1 )
+      );
+  $delta_y *= $y_weight;
+# This is good:
+     my $distance = sqrt( ($delta_x)**2 + ($delta_y)**2 );
+# Might be a bit saner (reports 0 when expected to)
+#    my $distance = min( $delta_x, $delta_y );
+  return $distance;
+}
+
+
 
 =item is_overlapping
 

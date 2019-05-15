@@ -62,6 +62,7 @@ use File::Copy      qw( copy move );
 use Fatal           qw( open close mkpath copy move );
 use Cwd             qw( cwd abs_path );
 use Env             qw( HOME );
+use List::Util      qw( shuffle );
 use List::MoreUtils qw( any );
 use File::Spec;     # abs2rel
 
@@ -130,25 +131,33 @@ has output_basename  => (is => 'rw', isa => Str,
 has output_directory => (is => 'rw', isa => Str,
                          default => "$HOME/End/Cave/Spots/Wall" );
 
+has top_bound   => (is => 'ro', isa => Num, default => 0 );
+has left_bound  => (is => 'ro', isa => Num, default => 0 );
+has bot_bound   => (is => 'ro', isa => Num, default => 10000 );  # big numbers for now
+has right_bound => (is => 'ro', isa => Num, default => 10000 );
+
 # default values empirically determined
 # rem per line
-has vertical_scale     => (is => 'rw', isa => Num,  default => 1.17 );  
+# has vertical_scale     => (is => 'rw', isa => Num,  default => 1.5 );  
+ has vertical_scale     => (is => 'rw', isa => Num,  default => 1.3 );  
+# has vertical_scale     => (is => 'rw', isa => Num,  default => 1.17 );  
 # has vertical_scale     => (is => 'rw', isa => Num,  default => 1.2 );  
 # px per char
-has horizontal_scale   => (is => 'rw', isa => Num,  default => 9    );  
-# has horizontal_scale   => (is => 'rw', isa => Num,  default => 12    );  
+# has horizontal_scale   => (is => 'rw', isa => Num,  default => 15    );  
+# has horizontal_scale   => (is => 'rw', isa => Num,  default => 9    );  
+has horizontal_scale   => (is => 'rw', isa => Num,  default => 12    );  
 
-has vertical_padding   => (is => 'rw', isa => Num,  default => 0.6 );  # rem
-# has vertical_padding   => (is => 'rw', isa => Num,  default => 2 );  # rem
-has horizontal_padding => (is => 'rw', isa => Int,  default => 2   );  # px 
-# has horizontal_padding => (is => 'rw', isa => Int,  default => 10   );  # px 
+# has vertical_padding   => (is => 'rw', isa => Num,  default => 0.6 );  # rem
+has vertical_padding   => (is => 'rw', isa => Num,  default => 2 );  # rem
+# has horizontal_padding => (is => 'rw', isa => Int,  default => 2   );  # px 
+has horizontal_padding => (is => 'rw', isa => Int,  default => 10   );  # px 
 
 # EXPERIMENTAL when placing a new rectangle shove over from where we think it should go
-# has vertical_shoveover   => (is => 'rw', isa => Num,  default => 2  );  # rem
-# has horizontal_shoveover => (is => 'rw', isa => Int,  default => 10  );  # px 
+# has vertical_shoveover   => (is => 'rw', isa => Num,  default => 0.5  );  # rem
+# has horizontal_shoveover => (is => 'rw', isa => Int,  default => 5  );  # px 
  has vertical_shoveover   => (is => 'rw', isa => Num,  default => 0  );  # rem
  has horizontal_shoveover => (is => 'rw', isa => Int,  default => 0  );  # px 
-
+# has horizontal_shoveover => (is => 'rw', isa => Int,  default => 25  );  # px 
 
 has initial_y          => (is => 'rw', isa => Int,  default => 0    ); # rem 
 has initial_x          => (is => 'rw', isa => Int,  default => 5    ); # px
@@ -171,17 +180,7 @@ has layout_style => (is => 'rw', isa => Str, default => 'metacats_doublezig' );
 # array of rectangles added to the current layout (used by 'metacats_fanout')
 has placed       => (is => 'rw', isa => ArrayRef, default => sub{ [] } );
 
-# The way I'd like Moo to work is with class names acting as types:
-#   has dbh              
-#     => (is => 'rw', isa => 'DBI::db',  lazy => 1,
-#           builder => 'builder_db_connection' );
-# 
-# What I guess I'm supposed to do (is this *really* better than Mouse?):
 has dbh              => (is => 'rw',   
-#                          isa => sub {
-#                            die "$_[0] not a db handle"
-#                              unless ref $_[0] eq 'DBI::db'
-#                            },
                          isa => InstanceOf['DBI::db'],
                          lazy => 1, builder => 'builder_db_connection' );
 
@@ -241,7 +240,8 @@ sub builder_db_connection {
   # TODO break-out more of these params as object fields
   # TODO add a secrets file to pull auth info from
   my $dbname = $self->db_database_name; # default 'spots'
-  my $port = '5434';
+  # my $port = '5434'; # non-standard port for old build on tango
+  my $port = '5432';
   my $data_source = "dbi:Pg:dbname=$dbname;port=$port;";
   my $username = 'doom';
   my $auth = '';
@@ -350,7 +350,6 @@ Takes one optional argument, a string to specify a layout style.
 
   'metacats_fanout'
              - start in corner, move outwards, uses collision detection.
-          
 
 =cut
 
@@ -393,11 +392,15 @@ sub generate_layout_metacats_fanout {
   my $cat_count = scalar( @{ $cats } );
   $self->hello_sub("cat_count: $cat_count");
 
-  my ($x1, $y1) = ($self->initial_x, $self->initial_y);
+  unless( $cat_count > 0 ) {
+    croak "Sadly, we have no cats, we can not 'generate_layout_metacats_fanout'";
+  }
+
+  # initialize $placed array: place the first cat in upper-left
   $self->clear_placed;
   my $placed = $self->placed;
-  # initialize $placed array: place the first cat in upper-left
-  my $cat = shift @{ $cats };  # TODO skip if empty!
+  my ($x1, $y1) = ($self->initial_x, $self->initial_y);
+  my $cat = shift @{ $cats };  
   $self->put_cat_in_place( $cat, $x1, $y1 );
  CAT:
   foreach my $cat ( @{ $cats } ) { 
@@ -531,6 +534,29 @@ sub create_rectangle {
 }
 
 
+
+=item create_rectangle_from_cat
+
+Given a $cat and an x1/y1 point, returns a new rectangle object
+for it.  If need be fill_in_cat is called to get height and width.
+
+  my $rect = 
+    $self->create_rectangle_from_cat( $cat, $x1, $y1  );
+
+=cut
+
+sub create_rectangle_from_cat {
+  my $self = shift;
+  my $cat = shift;
+  my $x1 = shift;
+  my $y1 = shift;
+  my ($width, $height) = $self->cat_width_height( $cat );
+  my $x2 = sprintf( "%.f",  ($x1 + $width ));
+  my $y2 = sprintf( "%.f",  ($y1 + $height ));
+  my $rect = Spots::Rectangle->new({ coords => [ $x1, $y1, $x2, $y2 ] });  
+  return $rect;
+}
+
 =item find_place_for_cat
 
 pick location for cat, avoid collision with anything in placed.
@@ -542,203 +568,61 @@ Example usage:
 
 =cut
 
+# STYLE: metacats_fanout
+# find a place to put the given cat in the layout
 sub find_place_for_cat {
   my $self       = shift;
   my $cat        = shift;
   my $placed     = shift || $self->placed;  # aref of rectangles
   my $cat_name = $cat->{ name };
+  my $mc_id    = $cat->{ metacat };
   $self->hello_sub("cat: " . $cat->{id} . ' ' . $cat_name);
 
   # We start at an already placed rectangle (the "starting rectangle")
-  # and look from there in various directions, extending various lines from the rectangle
+  # and look from there in various directions.
 
-  # The starting points require a known rectangle, but the where we look follows
-  # a simple pattern-- so we use a method call to set them up, given a rectangle
-
-  # Stub behavior: to start with we use a single rectangle as start_rects
-  # the last "placed" rectangle (will pick a place near it)
-
-#   my $lr = $placed->[ -1 ];  # the "last rectangle"
-#   my @start_rects;
-#   push @start_rects, $lr;
-
-#  my @start_rects = @{ $placed }[ -3 .. -1 ];
-
+  # choose possible starting points from already placed rects 
   my @start_rects;
-  push @start_rects, $placed->[ -1 ];
-  push @start_rects, $placed->[ -2 ] if defined $placed->[ -2 ];
-#  push @start_rects, $placed->[ -3 ] if defined $placed->[ -3 ];
+  my @placed_from_mc = grep { $_->metacat == $mc_id } @{ $placed }; 
 
-# (Getting can't call method on undefs errors with more than one look-back)
+  if( @placed_from_mc ) { 
+    @start_rects = @placed_from_mc;
+  } else { # if none yet placed from this metacat, just use the most recent
+    # @start_rects = @{ $placed }[ -3 .. -1 ];
 
-  ### 1: setup the trials by looping over permutations of start_rects and position/direction templates
-  my @trials;
-  my $swp_cnt = 0; ### DEBUG
-  foreach my $r ( @start_rects ) { 
-      my @sweep_params = $self->setup_sweep_start_points_and_directions( $r, $cat );
-      # say "sweep_params: ", Dumper( \@sweep_params ) if $swp_cnt < 1;
-      print STDERR $self->summarize_sweep_params( \@sweep_params ) if $swp_cnt < 1;
-
-      foreach my $sp ( @sweep_params ) {
-        push @trials, 
-          { cat          => $cat, # note: has height and width
-            start_rect   => $r,
-            sweep_params => $sp,  # aref to feed to "sweep"
-          };
-      }
-    }
-  # say STDERR 'trials: ', Dumper( \@trials );
-
-  ### 2: process the trials doing sweeps to get candidates (rectangle objects to evaluate)
- TRIAL:
-  foreach my $trial (@trials) {
-    my $sweep_params = $trial->{sweep_params};
-    # say STDERR 'sweep_params: ', Dumper( $sweep_params );
-    my $ret = 
-      $self->sweep_in_direction_for_open_space( @{ $sweep_params } );
-    next TRIAL unless $ret;
-    $trial->{candidate} = $ret;
+    push @start_rects, $placed->[ -1 ];
+    push @start_rects, $placed->[ -2 ] if defined $placed->[ -2 ];
+    #  push @start_rects, $placed->[ -3 ] if defined $placed->[ -3 ];
   }
 
-  ### 3: get candidate score parameter, choose the minimum
-  # initialize for candy loop
-  my $initial_trial = shift @trials;
-  my $new_rect   = $initial_trial->{candidate};
-  my $start_rect = $initial_trial->{start_rect};
-  my $min = $self->ungoodness( $start_rect, $new_rect );  
-  my $param;
-  CANDY:
-  foreach my $trial ( @trials ) {
-    next CANDY unless ($trial && $trial->{candidate});
-    my $candidate   = $trial->{candidate};
-    my $start_rect  = $trial->{start_rect};
-    my $param = $self->ungoodness( $start_rect, $candidate );  
-    if ( $min > $param ) {
-      $min = $param;
-      $new_rect = $candidate;
+   my $candidate_locations = 
+     $self->look_all_around_given_rectangles( \@start_rects, $cat );
+
+  # STUB  just pick one randomly
+  print STDERR "candidate_locations: ", Dumper( $candidate_locations ), "\n";
+#   my $coords = 
+#     $candidate_locations->[ int( rand( $#{ $candidate_locations } ) + 0.5 ) ];
+
+  # STUBBIER use the first one (predictable)
+#  my $coords = $candidate_locations->[ 0 ];
+
+#   # STUB_LITE going after third, second or first in that order (repeatable)
+  my @first_three = @{ $candidate_locations }[ 0 .. 2 ];
+  my $pick;
+ MAYBE: 
+  foreach my $maybe ( reverse @first_three ) { 
+    if( $maybe ) { 
+      $pick = $maybe;
+      last MAYBE;
     }
   }
-  my ($x1, $y1) = ($new_rect->x1, $new_rect->y1);
+  my $coords = $pick;
+
+  my ( $x1, $y1 ) = @{ $coords } if $coords;
+
   $self->farewell();
   return ( $x1, $y1 );
 }
-
-
-
-=item summarize_sweep_params
-
-Example use:
-
-  print $self->summarize_sweep_params( $sweep_params );
-
-=cut
-
-sub summarize_sweep_params {
-  my $self = shift;
-  my $swps = shift;
-
-  my @column_heads = ('cat_id', 'cat_name', 'spots', 'dir', 'x', 'y');
-  my $fmt = "%6s%20s%8s%5s%8s%8s\n";
-  my $heading = sprintf $fmt, @column_heads;
-  my $summary = $heading;
-  foreach my $swp ( @{ $swps } ) { 
-    my $cat        = $swp->[0];
-    my $cat_id     = $cat->{id};
-    my $cat_name   = $cat->{name};
-    my $spots      = $cat->{spots};
-    my $spot_count = scalar( @{ $spots } );
-    my $direction  = $swp->[1];
-    my $x          = $swp->[2];
-    my $y          = $swp->[3];
-    $summary .= sprintf $fmt, $cat_id, $cat_name, $spot_count, $direction, $x, $y;
-  }
-  return $summary;
-}
-
-
-
-=item setup_sweep_start_points_and_directions
-
-Given a starting rectangle (and a cat, just to pass it through)
-this routine follows our current set patterns of directions and
-starting points to look for open space near the start rectangle.
-
-Returns a list suitable for passing to 
-
-  sweep_in_direction_for_open_space
-
-Which is called like so:
-
-  my $candidate_rectangle = 
-     $self->sweep_in_direction_for_open_space( $cat, 'n', $x1, ($y1-$height));
-
-
-Example usage:
-
-  @sweep_params = setup_sweep_start_points_and_directions( $start_rect, $cat );
-
-
-# TODO 
-  # We start at an already placed rectangle (the "starting rectangle")
-  # and look from there in various directions, extending various lines from the rectangle
-
-  # The starting points require a known rectangle, but the where we look follows
-  # a simple pattern-- so we use a method call to set them up, given a rectangle
-
-=cut
-
-sub setup_sweep_start_points_and_directions {
-  my $self = shift;
-  my $r    = shift;
-  my $cat  = shift; 
-
-  # these are the h&w of the new rectangle to be placed
-  my ($width, $height) = ( $cat->{ width }, $cat->{ height } ); 
-  say STDERR "^^^ width: $width, height: $height";
-
-  my @sweep_params;
-  my ($x1, $y1, $x2, $y2) = ($r->x1, $r->y1, $r->x2, $r->y2);
-  # my ($xc, $yc) = map { int } @{ $r->center };
-  my ($xc, $yc) = map { sprintf( "%.f", $_) } @{ $r->center };
-
-   say STDERR "~~~ x1:$x1 y1:$y1 x2:$x2 y2:$y2 xc:$xc yc:$yc";
-#   say STDERR "WHAT X: x1 less width: ", ($x1-$width) ;
-#   say STDERR "WHAT Y: y1 less height: ", ($y1-$height) ;
-
-  my $x1_less_w = sprintf( "%.f", ($x1-$width) );
-  my $y1_less_h = sprintf( "%.f", ($y1-$height));
-
-#   say STDERR "THIS X: x1 less width: ", $x1_less_w;
-#   say STDERR "THIS Y: y1 less height: ", $y1_less_h;
-
-  # filling in the direction and start point templates 
-  push @sweep_params,   [$cat, 'e', $x2, $y1];
-  push @sweep_params,   [$cat, 'e', $x2, $yc];
-  push @sweep_params,   [$cat, 's', $x1, $y2];
-  push @sweep_params,   [$cat, 's', $xc, $y2];
-  push @sweep_params,   [$cat, 'w', $x1_less_w, $y1] unless $x1_less_w<-1;
-  push @sweep_params,   [$cat, 'w', $x1_less_w, $yc] unless $x1_less_w<-1;
-  push @sweep_params,   [$cat, 'n', $x1,        $y1_less_h] unless $y1_less_h<-1;
-  push @sweep_params,   [$cat, 'n', $xc,        $y1_less_h] unless $y1_less_h<-1;
-
-  #                                       ^ 
-  #                              .--------'
-  #                             /
-  #                            /
-  #                           /
-  # Note: there's no point in starting from an overlapping condition
-  # you might as well shuffle over enough so that you know the new 
-  # rectangle will clear the old, hence the width & height adjustments
-  # of the 'w' and 'n' start cases.
-
-  # But if that sends us off of the board into the negative integers, 
-  # we might as well skip that case now, hence the "unless" checks.
-
-  return @sweep_params;
-}
-
-
-
 
 =item ungoodness
 
@@ -751,363 +635,259 @@ between the rectangles-- the smaller the better.
 Example use:
 
  $param = 
-   $self->ungoodness($last_rectangle, $candidate_rectangle);
+   $self->ungoodness( $candidate_rectangle, $last_rectangle );
+
+TODO 
+
+The second parameter is going to become optional (or more likely vestigial).
+
+Evaluating the candidate_rectangle is done by computing the distances 
+between it and the other already placed cats of the same metacat.
 
 =cut
 
-# TODO may need more information than just geometry, which means I need
-# some enhanced data structure... a catangle?  Maybe: add a "meta" 
-# stash to the Rectangle object, so I can tag it with e.g. a cat_id.  
 sub ungoodness {
   my $self = shift;
   my $r1 = shift;
   my $r2 = shift;
-  # my $dist = $r1->distance( $r2 );
-  my $dist = $self->distance( $r1, $r2 );
 
+  my $mc = $r1->metacat;
+  my $placed = $self->placed;
+
+  say "WARNING: got no metacat info for this rect" unless $mc;
+
+  my @same_metacat;
+  { no warnings 'uninitialized';
+    @same_metacat = grep { $_->metacat == $mc } @{ $placed };
+  }
+
+  # TODO: vector summation?
+  my ($dist, $total);
+  foreach my $other ( @same_metacat ) {
+    $dist = $r1->distance( $other );
+    $total += $dist;
+  }
+  
+  # my $cat_name = $r1->{meta}->{cat_name};
+  # say "$cat_name of metacat: $mc has distance total: $total";
+
+  $dist = $total;
   return $dist;
 }
 
 
-=item distance
 
-Rather than use the Rectangle.pm distance sub, try one of our own
-we can hack to our own purposes (perhaps).
+
+=item look_all_around_given_rectangles
+
+Rename: 
+  look_all_around_given_rectangles
+  
+
+
+
+Given at least one starting rectangle, look around the edges for
+an open area that will fit the given category.  Return a list of
+some (x, y) pairs that would work.  Note: it need not be an
+exhaustive list.  It can include places not *immediately*
+adjacent to the given starting rectangle.
+
+Returns a list of arefs of x, y pairs.
+
+  my $candidate_locations = 
+    $self->look_all_around_given_rectangles( \@start_rects, $cat );
+
+(TODO this sounds useful to me, and shouldn't be that hard to
+ implement.  Ideally, better locations should be stuck closer to
+ the top of list of candidates_locations.  The idea is since we
+ know where placed rectangles are, might as well start next to
+ them, and if there's an overlap, use the *overlapped* rect to
+ find where to look next for an open area.
+
+ This obviates that crap about direction templates and such.)
 
 =cut
 
-sub distance {
+sub look_all_around_given_rectangles {
   my $self = shift;
-  my $r1 = shift;
-  my $r2 = shift;
-  my $y_weight = 11.5;
+  my $start_rects = shift;
+  my $cat = shift;
+  $self->hello_sub("looking for place for cat: " . $cat->{id} . ' ' . $cat-> {name});
 
-  my ($xc1, $yc1) = @{ $r1->center };
-  my ($xc2, $yc2) = @{ $r2->center };
+  my ($width, $height) = ($cat->{width}, $cat->{height});
 
-  my ($x1, $y1) = ($r1->x1, $r1->y1);
-  my ($x2, $y2) = ($r1->x2, $r1->y2);
+  my $inc_x = 1; ### TODO px vs rem? 
+  my $inc_y = 1; ### TODO px vs rem? 
 
-  my $distance = sqrt( ($xc1 - $xc2)**2 + (($yc1 - $yc2)*$y_weight)**2 );
-  return $distance;
-}
-
-
-=item bloat_up
-
-bloat_up fights the blight of premature encapsulation.
-
-bloat_up (at present) just takes multiple hrefs and fuses all the
-information into one name space, It (optionally) prepends prefix
-names to everything from different sources to prevent collisions
-and not incidentally explain where the info came from.
-
-My example usage:
-
-  my $blobject = $self->bloat_up( 'cat_', $cat, 'rect_', $rect );
-
-  # add fields without changing existing keys
-  my $fatcat = $self->bloat_up( '', $cat, 'rect_', $rect );
-
-=cut
-
-# TODO write a bloat_down routine that removes fields, perhaps moving them into another href
-sub bloat_up {
-  my $self = shift;
-  ### TODO peel options href off of the tail
-  ### TODO alternate version that adds fields to a given href
-  my $new_href;
-  while( my( $prefix, $href ) =  each @_ ) {  # use 5.12, I think
-    while (my ( $key, $value ) = each %{ $href }) {
-      my $new_key = $prefix . $key;
-      $new_href->{ $new_key } = $value;
-    }
-  }
-  return $new_href;
-}
-
-
-
-sub find_place_for_cat_just_h_v {
-  my $self       = shift;
-  my $cat        = shift;
-  my $placed     = shift || $self->placed;  # aref of rectangles
-
-  my $cat_name = $cat->{ name };
-  $self->hello_sub("cat: " . $cat->{id} . ' ' . $cat_name);
-
-  # start with the last "placed" rectangle (will pick a place near it)
-  my $last_rect = $placed->[ -1 ];
-  my ($x1, $y1, $x2, $y2) =
-    ($last_rect->x1, $last_rect->y1, $last_rect->x2, $last_rect->y2);
-
-  my $rect_h = 
-    $self->sweep_in_direction_for_open_space( $cat, 'h', $x2, $y1 );
-
-  my $rect_v = 
-    $self->sweep_in_direction_for_open_space( $cat, 'v', $x1, $y2 );
-
-  # get distance to either rectangle, choose the minimum
-  my $new_rect;
-  if ( $last_rect->distance( $rect_h ) < $last_rect->distance( $rect_v ) ) {
-    $new_rect = $rect_h; 
-  } else {
-    $new_rect = $rect_v; 
-  }
-
-  ($x1, $y1) = ($new_rect->x1, $new_rect->y1);
-  $self->farewell();
-  return ( $x1, $y1 );
-}
-
-
-
-
-=item find_place_for_cat_name_controls_direction
-
-pick location for cat, avoid collision with anything in placed.
-also stash cat in "placed" data structure
-
-Example usage:
-
-      my ($x1, $y1) = $self->find_place_for_cat_name_controls_direction( $cat )
-
-=cut
-
-sub find_place_for_cat_name_controls_direction {
-# sub find_place_for_cat {
-  my $self       = shift;
-  my $cat        = shift;
-  my $placed     = shift || $self->placed;  # aref of rectangles
-
-  my $cat_name = $cat->{ name };
-  $self->hello_sub("cat: " . $cat->{id} . ' ' . $cat_name);
-
-  # default direction to move from cat_name (first half alpha goes right, second goes down)
-  my $first_char = substr( $cat_name, 0, 1);
-
-  my $direction; 
-  if ($first_char lt 'm' ) {
-    $direction = 'h';
-  } else {
-    $direction = 'v';
-  }
-
-  # start with the last "placed" rectangle (will pick a place near it)
-  my $last_rect = $placed->[ -1 ];
-  my ($x1, $y1, $x2, $y2) =
-    ($last_rect->x1, $last_rect->y1, $last_rect->x2, $last_rect->y2);
-
-  # start at the far edge of the last rectangle
-  if( $direction eq 'h' ) {  # horizontal
-    $x1 = $x2;
-  } elsif( $direction eq 'v') {  # vertical
-    $y1 = $y2;
-  }
-
-  my $rect = 
-    $self->sweep_in_direction_for_open_space( $cat, $direction, $x1, $y1  );
-
-  $self->farewell();
-  return ( $x1, $y1 );
-}
-
-
-=item sweep_in_direction_for_open_space
-
-Look for space for the $cat, going in the direction
-indicated starting from the initial x/y location.
-
-Direction is a code (at present) limited to:
-
-  'e' -- east 
-  'w' -- west
-  'n' -- south
-  's' -- north
-
-  'v' -- vertical    (same as south)
-  'h' -- horizontal  (same as east)
-
-Example usage:
-
-  my $rect = 
-    $self->sweep_in_direction_for_open_space( $cat, $direction, $x1, $x2  );
-
-Returns a new rectangle object.
-
-=cut
-
-sub sweep_in_direction_for_open_space {
-  my $self      = shift;
-  my $cat       = shift;
-  my $direction = shift;
-  my $x1        = shift;
-  my $y1        = shift;
-
-  $self->hello_sub("$direction from $x1, $y1 for cat: " . $cat->{id} . ' ' . $cat-> {name});
-
+  my @candilocs;
   my $placed    = $self->placed;
 
-  # try out this position (xy pair) against existing placed rects
-  # if there's a collison, keep moving in the direction $direction
-  my $new_rect;
- RECT:
-  while( 1 ) { 
-    my $x2 = sprintf( "%.f",  ($x1 + $cat->{ width  }));
-    # my $y2 = sprintf( "%.0d", ($y1 + $cat->{ height })); 
-    my $y2 = sprintf( "%.f", ($y1 + $cat->{ height }));
+  my ($x_trial, $y_trial, $newplc);
+  foreach my $sr ( @{ $start_rects } ) { 
+    my ($x1, $y1) = ($sr->x1, $sr->y1);
+    my ($x2, $y2) = ($sr->x2, $sr->y2);
 
-    my $rect = Spots::Rectangle->new({ coords => [ $x1, $y1, $x2, $y2 ] });  
+    # east
+    ($x_trial, $y_trial) = ($x2+$inc_x, $y1);
+    $newplc =
+      $self->find_hole_for_cat_thataway( 'e', $cat, $x_trial, $y_trial, $placed, $inc_x, $inc_y );
+    push @candilocs, $newplc if $newplc;
 
-  POS: 
-    foreach my $prev_rect ( @{ $placed } ) {
-      if ( $rect->is_overlapping( $prev_rect ) ) {  
-        if ( ( $direction eq 'h' ) || ( $direction eq 'e' ) ) {    # horizontal
-          $x1++;
-        } elsif ( ( $direction eq 'v') || ( $direction eq 's' ) ) { # vertical
-          $y1++;
-        } elsif (  $direction eq 'w'  ) {  
-          return undef if $x1 <= 0;   # skip case going off screen
-          $x1--;  
-        }
-        elsif (  $direction eq 'n'  ) { 
-          return undef if $y1 <= 0;  # skip case going off screen
-          $y1--; 
-        }
-        next POS;
-      } 
-    }
-    # If we've made it to here, we're in the clear
-    $new_rect = $rect;
-    last RECT;
+    # west
+    ($x_trial, $y_trial) = ($x1-($width+$inc_x), $y1);
+    $newplc =
+      $self->find_hole_for_cat_thataway( 'w', $cat, $x_trial, $y_trial, $placed, $inc_x, $inc_y );
+    push @candilocs, $newplc if $newplc;
+
+    # south 
+    ($x_trial, $y_trial) = ($x1, $y2+$inc_y);
+    $newplc =
+      $self->find_hole_for_cat_thataway( 's', $cat, $x_trial, $y_trial, $placed, $inc_x, $inc_y );
+    push @candilocs, $newplc if $newplc;
+
+    # north
+    ($x_trial, $y_trial) = ($x1, ($y1-($height+$inc_y)));
+    $newplc =
+      $self->find_hole_for_cat_thataway( 'n', $cat, $x_trial, $y_trial, $placed, $inc_x, $inc_y );
+    push @candilocs, $newplc if $newplc;
   }
-  my $mess = defined( $new_rect ) ?  "returning rectangle" : "returning undef";
 
-  $new_rect = $self->shoveover_rect( $new_rect );
-
+  my $mess = '';
+  # my $mess = defined( $new_rect ) ?  "returning rectangle" : "returning undef";
   $self->farewell( $mess );
-  return $new_rect;
+  return \@candilocs;
 }
 
 
 
-=item shoveover_rect
+=item find_hole_for_cat_thataway
 
-Example usage:
+Find open place for $cat looking over that way (in direction: 'e', 'w', 's', 'n'),
 
-  my $new_rect = $self->shoveover_rect( $new_rect );
+ o  starting from here: $x, $y
+
+ o  avoid overlaps with rectangles in aref $placed 
+     (defaults to object's "placed")
+
+Example usage:  
+
+  my $adds = $self->find_hole_for_cat_thataway( 'e', $cat, $x, $y, $placed );
+  push @candilocs, @{ $adds };
 
 =cut
 
-sub shoveover_rect {
+sub find_hole_for_cat_thataway {
+  my $self      = shift;
+  my $direction = shift; 
+  my $cat       = shift;
+  my $x_trial   = shift;
+  my $y_trial   = shift; 
+  my $placed    = shift || $self->placed;
+  my $nudge_x     = shift || 0;
+  my $nudge_y     = shift || 0;
+
+  # check if $x_trial and/or $y_trial are out-of-bounds, i.e. less than 0.
+  return () if( ($x_trial < 0) || ($y_trial < 0) );
+
+  my @additional_places;
+
+  # Given a $cat and a tentative x,y to start
+  # we create a rectangle for the cat on the fly, and check for 
+  # overlap against each of the already placed rectangles.
+  # If we hit an overlap, we get the size of the overlapped 
+  # rectangle, move our tentative x,y past it moving in $direction,
+  # and restart the check against the "gauntlet" of placed rectangles.
+  # When we've got a position that clears all of them, we use that,
+  # Note: while a $cat has a known width and height, our rectangle
+  # objects require an absolute location, so the $cat_rect needs 
+  # to be re-created for every tentative x,y.
+
+  my ($x, $y) = ($x_trial, $y_trial);
+  my $cat_rect = $self->create_rectangle_from_cat( $cat, $x, $y  );
+ GAUNTLET: {
+      foreach my $placed_rect ( @{ $placed } ) { 
+        if ( $cat_rect->is_overlapping( $placed_rect ) ) {  
+          # step around overlapped rectangle, try again
+          ($x, $y) =
+            $self->step_passed_rectangle( $x, $y, $direction, $placed_rect, $nudge_x, $nudge_y );
+          $cat_rect = $self->create_rectangle_from_cat( $cat, $x, $y  );
+          return undef if $self->position_out_of_bounds( $x, $y );
+          last GAUNTLET; # restart check against list of placed
+        } 
+       } # end foreach
+  }
+  my $new_place = [ $x, $y ];
+  return $new_place;
+}
+
+=item step_passed_rectangle
+
+Example usage:
+
+  my ($new_x, $new_y) = step_passed_rectangle( $x, $y, $direction, $rect );
+
+Note: there's no checking that $x, $y are anywhere near $rect. 
+Usually they'll be the rectangles upper-left corner.
+
+=cut
+
+sub step_passed_rectangle {
   my $self = shift;
-  my $r    = shift;
+  my $x = shift;
+  my $y = shift;
+  my $direction = shift;
+  my $rect = shift;
 
-  my   $vertical_shoveover   = $self->vertical_shoveover;
-  my   $horizontal_shoveover = $self->horizontal_shoveover;
+  my $nudge_x = shift || 0;
+  my $nudge_y = shift || 0;
 
-  my ($x1, $y1, $x2, $y2) = ($r->x1, $r->y1, $r->x2, $r->y2);
+  my $w = $rect->width;
+  my $h = $rect->height;
 
-  $x1 += $horizontal_shoveover;
-  $x2 += $horizontal_shoveover;
-  $y1 += $vertical_shoveover;
-  $y2 += $vertical_shoveover;
-
-# This won't work, because they're 'ro' fields
-#   $r->x1( $x1 );
-#   $r->y1( $y1 );
-#   $r->x2( $x2 );
-#   $r->y2( $y2 );
-
-  my $meta = $r->meta;
-  my $new_rect = Spots::Rectangle->new({ coords => [ $x1, $y1, $x2, $y2 ],
-                                         meta   => $meta
-                                       });  
-  return $new_rect;
+  if ( $direction eq 'e' ) { 
+    $x += ($w + $nudge_x);
+  } elsif ( $direction eq 'w' ) {
+    $x -= ($w + $nudge_x);
+  } elsif ( $direction eq 's' ) {
+    $y += ($h + $nudge_y);
+  } elsif ( $direction eq 'n' ) {
+    $y -= ($h + $nudge_y);
+  } else {
+    croak "direction needs to be one of 'e', 'w', 's', or 'n'";
+  }
+  return ($x, $y);
 }
 
 
 
-
-
-=item place_cat
-
-pick location for cat, avoid collision with anything in placed.
-also stash cat in "placed" data structure
+=item position_out_of_bounds
 
 Example usage:
 
-      ($x, $y) = $self->place_cat( $cat, \@placed );
-
-TODO moving the stashing features to "put_cat_in_place" (along with db update of layout).
-     want a variant version of this routine that just picks a place: "find_place_for_cat"
+   return undef if( $self->position_out_of_bounds( $x, $y ) );
 
 =cut
 
-sub place_cat {
-  my $self       = shift;
-  my $cat        = shift;
-  my $placed     = shift || $self->placed;  # aref of rectangles
-#  my $direction  = shift || '';
-  my $cat_name = $cat->{ name };
-  $self->hello_sub("cat: " . $cat->{id} . ' ' . $cat_name);
+sub position_out_of_bounds {
+  my $self = shift;
+  my $x = shift;
+  my $y = shift;
 
-  # default direction to move from cat_name (first half alpha goes right, second goes down)
+  my $top_bound   = $self->top_bound || 0;
+  my $left_bound  = $self->left_bound || 0; 
+  my $bot_bound   = $self->bot_bound;
+  my $right_bound = $self->right_bound;
 
-  my $first_char = substr( $cat_name, 0, 1);
-
-  my $direction; 
-  if ($first_char lt 'm' ) {
-    $direction = 'h';
+  my $out;
+  if( ( $x < $left_bound || $x > $right_bound ) ||
+      ( $y < $top_bound  || $y > $bot_bound )      
+    ) {
+    $out = 1;
   } else {
-    $direction = 'v';
+    $out = 0;
   }
-
-  # choose a place to begin, a possible $x1, $y1 
-  my $last_rect = $placed->[ -1 ];
-  my ($x1, $y1, $x2, $y2) = ($last_rect->x1, $last_rect->y1, $last_rect->x2, $last_rect->y2);
-
-  # start at the far edge of the last rectangle
-  if( $direction eq 'h' ) {  # horizontal
-    $x1 = $x2;
-  } elsif( $direction eq 'v') {  # vertical
-    $y1 = $y2;
-  }
-
-  # try out this position (xy pair) against existing placed rects
-  # if there's a collison, keep moving in the direction $direction
-  my $new_rect;
- RECT:
-  while( 1 ) { 
-    my $x2 = $x1 + $cat->{ width  };
-    my $y2 = $y1 + $cat->{ height };
-    my $rect = Spots::Rectangle->new({ coords => [ $x1, $y1, $x2, $y2 ] });  
-
-  POS: 
-    foreach my $prev_rect ( @{ $placed } ) {
-      if ( $rect->is_overlapping( $prev_rect ) ) {  
-        if ( $direction eq 'h' ) {    # horizontal
-          $x1++;
-        } elsif ( $direction eq 'v') { # vertical
-          $y1++;
-        }
-        next POS;
-      } 
-    }
-    # If we've made it to here, we're clear
-    $new_rect = $rect;
-    last RECT;
-  }
-  
-  # after a rect passes, stash it in placed...
-  push @{ $placed }, $new_rect;
-
-  #  newly choosen x,y vals added to the $cat as well as returned
-  ( $cat->{x_location}, $cat->{y_location} ) = ($x1, $y1);
-  $self->farewell();
-  return ( $x1, $y1 );
+  return $out;
 }
-
 
 
 
@@ -1591,6 +1371,9 @@ sub html_css_from_layout {
       my $link    =  qq{<a href="$url">$label</a>};
       $cat_html .= "$link<br>\n";
     }
+    
+    $cat_html =~ s{<br>$}{<b>*$cat_id*</b><br>}x; ### DEBUG
+    $cat_html .= "$cat_id: $cat_name"; ### DEBUG
 
     $cat_html .= qq{</div>\n};
 
@@ -1604,13 +1387,32 @@ sub html_css_from_layout {
     my $w_str  = $w . 'px';  # estimated width to fit number of chars.
     my $h_str  = $h . 'rem'; # height sized for the number of lines
 
+# # TODO this doesn't work (?)
+#     my $cat_css =<<"____END_CSS";
+#       #$css_cat_id { position: absolute;    
+#                      top:  $y_str; 
+#                      left: $x_str; 
+#                      height: $h_str;        
+#                      width:  $w_str;        
+#                      margin: 0px;   
+#                      padding: 0px;  
+#                      border: solid 1px;  
+#                      data-catname: $cat_name; };
+  
+# ____END_CSS
+
     my $cat_css =
       qq(#$css_cat_id { position: absolute;    ) .
       qq(               top:  $y_str; ) .
       qq(               left: $x_str; ) .
       qq(               height: $h_str;        ) .
       qq(               width:  $w_str;        ) .
+      qq(               margin: 0px;  ) .
+      qq(               padding: 0px;  ) .
+      qq(               border: solid 1px;  ) .
       qq(               data-catname: $cat_name; } );
+
+    print STDERR "cat_css: $cat_css\n" unless $a++;
 
     # print block to the css handle
     print {$css_fh} $cat_css, "\n";
@@ -1954,7 +1756,11 @@ SQL to get label and url information for a given category.id.
 
 sub sql_for_cat {
   my $self = shift;
-  my $sql_cat = "SELECT id, url, label FROM spots WHERE category = ?";
+  my $sql_cat =<<"__END_CAT_SKULL";
+    SELECT spots.id AS id, url, label, category.metacat AS metacat
+    FROM spots JOIN category ON (category.id = spots.category) 
+    WHERE category.id = ?
+__END_CAT_SKULL
   return $sql_cat;
 }
 
@@ -2192,6 +1998,7 @@ a {
 body {
   color:      $body_fg;
   background: $body_bg;
+  box-sizing: border-box:
 }
 
 .container {

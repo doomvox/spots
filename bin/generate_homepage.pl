@@ -1,3 +1,4 @@
+#!/usr/bin/env perl
 #!/usr/bin/perl
 # generate_homepage.pl                   doom@kzsu.stanford.edu
 #                                        30 Mar 2019
@@ -62,7 +63,7 @@ use Spots::HomePage;
 # TODO rethink:
 my $base             = shift || "mah_moz_ohm";
 # my $output_directory = shift || cwd();  # First re-think: I hate pwd as default
-my $output_directory = shift || "/home/doom/End/Cave/Spots/Output/Five"; # temporary
+my $output_directory = shift || "/home/doom/End/Cave/Spots/Output/Seven"; # temporary
 
 mkpath( $output_directory ) unless -d $output_directory;
 
@@ -74,7 +75,8 @@ mkpath( $output_directory ) unless -d $output_directory;
 my $obj = Spots::HomePage->new(
                                output_basename  => $base,
                                output_directory => $output_directory,
-                               db_database_name => 'spots',
+                              db_database_name => 'spots',
+#                                db_database_name => 'spots_test',
 #                               layout_style     => 'metacats_doublezig',
 #                               layout_style     => 'metacats_fanout',
                               );
