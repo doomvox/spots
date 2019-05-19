@@ -50,7 +50,6 @@ mkpath( $pic_loc ) unless -d $pic_loc;
      is( $check_dist, $expected, "$test_name: $case_name" );
    }
 
-
    draw_cases( \@edge_distance_cases, $pic_loc, 'rect_pairs' )
 }
 

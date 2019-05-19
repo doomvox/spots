@@ -54,6 +54,8 @@ as "cat".
 =cut
 
 use 5.10.0;
+# use feature "switch";
+no warnings 'experimental';
 use Carp;
 use Data::Dumper;
 use File::Path      qw( mkpath );
@@ -152,12 +154,9 @@ has vertical_padding   => (is => 'rw', isa => Num,  default => 2 );  # rem
 # has horizontal_padding => (is => 'rw', isa => Int,  default => 2   );  # px 
 has horizontal_padding => (is => 'rw', isa => Int,  default => 10   );  # px 
 
-# EXPERIMENTAL when placing a new rectangle shove over from where we think it should go
-# has vertical_shoveover   => (is => 'rw', isa => Num,  default => 0.5  );  # rem
-# has horizontal_shoveover => (is => 'rw', isa => Int,  default => 5  );  # px 
- has vertical_shoveover   => (is => 'rw', isa => Num,  default => 0  );  # rem
- has horizontal_shoveover => (is => 'rw', isa => Int,  default => 0  );  # px 
-# has horizontal_shoveover => (is => 'rw', isa => Int,  default => 25  );  # px 
+# used by metacats_fanout, find_hole_for_cat_thataway
+has nudge_x => (is => 'rw', isa => Num,  default => 1.5 );  # rem
+has nudge_y => (is => 'rw', isa => Int,  default => 6   );  # px 
 
 has initial_y          => (is => 'rw', isa => Int,  default => 0    ); # rem 
 has initial_x          => (is => 'rw', isa => Int,  default => 5    ); # px
@@ -166,8 +165,8 @@ has html_file        => (is => 'rw', isa => Str, lazy => 1,
                          builder => 'builder_html_file' );
 has css_file         => (is => 'rw', isa => Str, lazy => 1,
                          builder => 'builder_css_file' );
-
-# horizontal distance in px between category "rectpara"s
+ 
+# horizontal distance in px between category "rectpara"s (metacats_doublezig)
 has x_gutter       => (is => 'rw', isa => Int, default=>4 );
 has y_gutter       => (is => 'rw', isa => Int, default=>1 ); # 1 rem
 has cats_per_row   => (is => 'rw', isa => Int, default=>7 );
@@ -411,9 +410,13 @@ sub generate_layout_metacats_fanout {
     $self->put_cat_in_place( $cat, $x1, $y1 );
   }
   my $place_count = scalar( @{ $placed } );
-  ($DEBUG) &&
-    say STDERR "!!! count of placed: $place_count, these are them:\n" .
-    Dumper( $placed );
+  if ($DEBUG) {
+    say STDERR "!!! count of placed: $place_count\n";
+    $self->placed_summary( $placed );
+  }
+
+  $self->check_placed( $placed );
+
   $self->farewell();
   return $place_count; 
 }
@@ -437,9 +440,12 @@ sub put_cat_in_place {
   my $cat     = shift;
   my $x1      = shift;
   my $y1      = shift;
-#  my $placed  = shift  || $self->placed;
   my $placed  = $self->placed;
-  $self->hello_sub("placed count: " . scalar(@{$placed}) );
+  my $placed_count = scalar(@{$placed});
+  $self->hello_sub("placed count: " . $placed_count );
+
+  # print STDERR "placed: ", Dumper( $placed ) if $placed_count < 10; ### DEBUG
+  # print $self->placed_summary( $placed ) if $placed_count < 10; ### DEBUG
 
   #  newly choosen x, y vals added to the $cat
   ( $cat->{x}, $cat->{y} ) = ($x1, $y1);
@@ -521,11 +527,12 @@ Example use:
 
 sub create_rectangle {
   my $self = shift;
-
   my $x1 = shift;
   my $y1 = shift;
   my $width = shift;
   my $height = shift;
+
+  confess("create_rectangle: need x1 and y1") unless ( defined( $x1 ) && defined( $y1 ) );
 
   my $x2 = $x1 + $width;
   my $y2 = $y1 + $height;
@@ -551,8 +558,13 @@ sub create_rectangle_from_cat {
   my $x1 = shift;
   my $y1 = shift;
   my ($width, $height) = $self->cat_width_height( $cat );
-  my $x2 = sprintf( "%.f",  ($x1 + $width ));
-  my $y2 = sprintf( "%.f",  ($y1 + $height ));
+
+#    my $x2 = sprintf( "%.f",  ($x1 + $width ))    + 0;
+#    my $y2 = sprintf( "%.f",  ($y1 + $height ))   + 0;
+
+   my $x2 = $x1 + $width;
+   my $y2 = $y1 + $height;
+
   my $rect = Spots::Rectangle->new({ coords => [ $x1, $y1, $x2, $y2 ] });  
   return $rect;
 }
@@ -595,28 +607,62 @@ sub find_place_for_cat {
     #  push @start_rects, $placed->[ -3 ] if defined $placed->[ -3 ];
   }
 
-   my $candidate_locations = 
+  my $candidate_locations = 
      $self->look_all_around_given_rectangles( \@start_rects, $cat );
+  $self->candidate_dumper( $candidate_locations );
 
-  # STUB  just pick one randomly
-  print STDERR "candidate_locations: ", Dumper( $candidate_locations ), "\n";
-#   my $coords = 
-#     $candidate_locations->[ int( rand( $#{ $candidate_locations } ) + 0.5 ) ];
+  # STUBS 
 
-  # STUBBIER use the first one (predictable)
-#  my $coords = $candidate_locations->[ 0 ];
-
-#   # STUB_LITE going after third, second or first in that order (repeatable)
-  my @first_three = @{ $candidate_locations }[ 0 .. 2 ];
-  my $pick;
- MAYBE: 
-  foreach my $maybe ( reverse @first_three ) { 
-    if( $maybe ) { 
-      $pick = $maybe;
-      last MAYBE;
+  # my $evaluation_method = "RANDOM";
+  # my $evaluation_method = "FIRST_ONE";
+  # my $evaluation_method = "THREE_TWO_ONE";
+  # my $evaluation_method = "THREE_CYCLE";
+  my $evaluation_method = "LAST_ONE";
+  state $i;  # my first use of "state"
+  my $coords;
+  given($evaluation_method) {
+    when (/^LAST_ONE$/)
+      {
+        $coords = $candidate_locations->[ -1 ]
+        }
+    when (/^RANDOM$/)
+      {
+        $coords = 
+          $candidate_locations->[ int( rand( $#{ $candidate_locations } ) + 0.5 ) ]
+        }
+    when (/^FIRST_ONE$/)
+      {
+        $coords = $candidate_locations->[ 0 ];
+      }
+    when (/^THREE_TWO_ONE$/)
+      {
+        my @first_three = @{ $candidate_locations }[ 0 .. 2 ];
+        my $pick;
+      MAYBE: 
+        foreach my $maybe ( reverse @first_three ) { 
+          if ( $maybe ) { 
+            $pick = $maybe;
+            last MAYBE;
+          }
+        }
+        $coords = $pick;
+      }
+    when (/^THREE_CYCLE$/)
+      { if ( $i ) { 
+        $i = 0 if $i == 2;
+        $i = 1 if $i == 0;
+        $i = 2 if $i == 1;
+      } else {
+        $i = 2; 
+      }
+        my $lim = $#{ $candidate_locations };
+        $i = $lim if( $i > $lim );
+        $coords = $candidate_locations->[$i];
+      }
+    default { 
+      die "Must define $evaluation_method as something known";
     }
-  }
-  my $coords = $pick;
+  };
 
   my ( $x1, $y1 ) = @{ $coords } if $coords;
 
@@ -677,14 +723,72 @@ sub ungoodness {
 
 
 
+=item check_placed
+
+Goes through the placed rectangles, looking for mistakes where
+two rectangles overlap.  Returns a copy of the report, 
+but if $DEBUG is on, it also reports directly to STDERR.
+
+Example usage:
+
+   my $report = $self->check_placed();
+
+=cut
+
+sub check_placed {
+  my $self = shift;
+  my $placed = shift || $self->placed;
+
+  my $report = '';
+  foreach my $i ( 0 .. $#{ $placed } ) { 
+    foreach my $j ( $i+1 .. $#{ $placed } ) { 
+      my $a = $placed->[ $i ];
+      my $b = $placed->[ $j ];
+
+      my $a_meta = $a->meta;
+      my $b_meta = $b->meta;
+
+      my $a_name = $a_meta->{cat_name};
+      my $a_id   = $a_meta->{cat};
+
+      my $b_name = $b_meta->{cat_name};
+      my $b_id   = $b_meta->{cat};
+
+      if( ($a_id == 13 && $b_id == 15) || ($a_id == 15 && $b_id == 13) ) {
+        say STDERR "MEEPSTER: i: $i j: $j";  ### i: 3 j: 5
+        # say "$a_id: ", Dumper( $a );
+        # say "$b_id: ", Dumper( $b );
+      }
+
+      if( $a->is_overlapping( $b ) ) {  
+        # report the problem
+        my $a_coords = $a->coords;
+        my $b_coords = $b->coords;
+
+        my $mess;
+        $mess .= sprintf "%4d %13s: %d,%d  %d,%d\n", $a_id, $a_name, @{ $a_coords };
+        $mess .= sprintf "%4d %13s: %d,%d  %d,%d\n", $b_id, $b_name, @{ $b_coords };
+        ($DEBUG) && say STDERR $mess, "\n";
+        $report .= $mess;
+      }
+    }
+  }
+
+#   my $r1 = $placed->[ 3 ];
+#   my $r2 = $placed->[ 5 ]; 
+#   say STDERR "Yes, we have overlappage detected" if $r1->is_overlapping( $r2 );
+#   say STDERR "Yes, we have overlappage detected" if $r2->is_overlapping( $r1 );
+#   $self->placed_summary( [ $r1, $r2 ] );
+#   say STDERR Dumper( $r1->coords );
+#   say STDERR Dumper( $r2->coords );
+
+  return $report;
+}
+
+
+
 
 =item look_all_around_given_rectangles
-
-Rename: 
-  look_all_around_given_rectangles
-  
-
-
 
 Given at least one starting rectangle, look around the edges for
 an open area that will fit the given category.  Return a list of
@@ -697,14 +801,13 @@ Returns a list of arefs of x, y pairs.
   my $candidate_locations = 
     $self->look_all_around_given_rectangles( \@start_rects, $cat );
 
-(TODO this sounds useful to me, and shouldn't be that hard to
- implement.  Ideally, better locations should be stuck closer to
- the top of list of candidates_locations.  The idea is since we
- know where placed rectangles are, might as well start next to
- them, and if there's an overlap, use the *overlapped* rect to
- find where to look next for an open area.
+The idea is since we know where placed rectangles are, might as
+well start next to them, and if there's an overlap, use the
+*overlapped* rect to find where to look next for an open area.
 
- This obviates that crap about direction templates and such.)
+TODO  Ideally, better locations should be stuck closer to
+      the top of list of candidates_locations.  
+
 
 =cut
 
@@ -712,12 +815,15 @@ sub look_all_around_given_rectangles {
   my $self = shift;
   my $start_rects = shift;
   my $cat = shift;
-  $self->hello_sub("looking for place for cat: " . $cat->{id} . ' ' . $cat-> {name});
+  $self->hello_sub("looking for place for cat: " . $cat->{id} . ' ' . $cat->{name});
 
   my ($width, $height) = ($cat->{width}, $cat->{height});
 
-  my $inc_x = 1; ### TODO px vs rem? 
-  my $inc_y = 1; ### TODO px vs rem? 
+### TODO px vs rem? 
+#   my $inc_x = 1; 
+#   my $inc_y = 1; 
+  my $inc_x = 4;
+  my $inc_y = 0.5;
 
   my @candilocs;
   my $placed    = $self->placed;
@@ -730,25 +836,25 @@ sub look_all_around_given_rectangles {
     # east
     ($x_trial, $y_trial) = ($x2+$inc_x, $y1);
     $newplc =
-      $self->find_hole_for_cat_thataway( 'e', $cat, $x_trial, $y_trial, $placed, $inc_x, $inc_y );
+      $self->find_hole_for_cat_thataway( 'e', $cat, $x_trial, $y_trial, $placed );
     push @candilocs, $newplc if $newplc;
 
     # west
     ($x_trial, $y_trial) = ($x1-($width+$inc_x), $y1);
     $newplc =
-      $self->find_hole_for_cat_thataway( 'w', $cat, $x_trial, $y_trial, $placed, $inc_x, $inc_y );
+      $self->find_hole_for_cat_thataway( 'w', $cat, $x_trial, $y_trial, $placed );
     push @candilocs, $newplc if $newplc;
 
     # south 
     ($x_trial, $y_trial) = ($x1, $y2+$inc_y);
     $newplc =
-      $self->find_hole_for_cat_thataway( 's', $cat, $x_trial, $y_trial, $placed, $inc_x, $inc_y );
+      $self->find_hole_for_cat_thataway( 's', $cat, $x_trial, $y_trial, $placed );
     push @candilocs, $newplc if $newplc;
 
     # north
     ($x_trial, $y_trial) = ($x1, ($y1-($height+$inc_y)));
     $newplc =
-      $self->find_hole_for_cat_thataway( 'n', $cat, $x_trial, $y_trial, $placed, $inc_x, $inc_y );
+      $self->find_hole_for_cat_thataway( 'n', $cat, $x_trial, $y_trial, $placed );
     push @candilocs, $newplc if $newplc;
   }
 
@@ -779,28 +885,31 @@ Example usage:
 sub find_hole_for_cat_thataway {
   my $self      = shift;
   my $direction = shift; 
-  my $cat       = shift;
+  my $cat       = shift;  # a big href, not some sort of object
   my $x_trial   = shift;
   my $y_trial   = shift; 
   my $placed    = shift || $self->placed;
-  my $nudge_x     = shift || 0;
-  my $nudge_y     = shift || 0;
+  $self->hello_sub("Looking in direction: $direction to find hole for cat: " . $cat->{id} . ' ' . $cat->{name});
+
+#   # DEBUG
+# #  if( $cat->{ id } == 8 && $direction eq 'e' ) {
+#   if( $cat->{ id } == 8 ) {
+#     say STDERR "Looking in direction: $direction, trying to place cat:";
+#     $self->meow( $cat );
+#     $self->placed_summary( $placed );
+#   }
 
   # check if $x_trial and/or $y_trial are out-of-bounds, i.e. less than 0.
   return () if( ($x_trial < 0) || ($y_trial < 0) );
 
   my @additional_places;
 
-  # Given a $cat and a tentative x,y to start
-  # we create a rectangle for the cat on the fly, and check for 
-  # overlap against each of the already placed rectangles.
+  # Given a $cat and a tentative x,y to start we create a rectangle for the cat on the fly, 
+  # and check for overlap against each of the already placed rectangles.
   # If we hit an overlap, we get the size of the overlapped 
   # rectangle, move our tentative x,y past it moving in $direction,
   # and restart the check against the "gauntlet" of placed rectangles.
-  # When we've got a position that clears all of them, we use that,
-  # Note: while a $cat has a known width and height, our rectangle
-  # objects require an absolute location, so the $cat_rect needs 
-  # to be re-created for every tentative x,y.
+  # When we've got a position that clears all of them, we use that.
 
   my ($x, $y) = ($x_trial, $y_trial);
   my $cat_rect = $self->create_rectangle_from_cat( $cat, $x, $y  );
@@ -809,14 +918,15 @@ sub find_hole_for_cat_thataway {
         if ( $cat_rect->is_overlapping( $placed_rect ) ) {  
           # step around overlapped rectangle, try again
           ($x, $y) =
-            $self->step_passed_rectangle( $x, $y, $direction, $placed_rect, $nudge_x, $nudge_y );
-          $cat_rect = $self->create_rectangle_from_cat( $cat, $x, $y  );
+            $self->step_passed_rectangle( $x, $y, $direction, $placed_rect, $cat_rect );
           return undef if $self->position_out_of_bounds( $x, $y );
-          last GAUNTLET; # restart check against list of placed
+          $cat_rect = $self->create_rectangle_from_cat( $cat, $x, $y ); # new rect to run gauntlet
+          redo GAUNTLET; # restart check against list of placed
         } 
        } # end foreach
   }
   my $new_place = [ $x, $y ];
+  $self->farewell();
   return $new_place;
 }
 
@@ -826,9 +936,6 @@ Example usage:
 
   my ($new_x, $new_y) = step_passed_rectangle( $x, $y, $direction, $rect );
 
-Note: there's no checking that $x, $y are anywhere near $rect. 
-Usually they'll be the rectangles upper-left corner.
-
 =cut
 
 sub step_passed_rectangle {
@@ -836,22 +943,24 @@ sub step_passed_rectangle {
   my $x = shift;
   my $y = shift;
   my $direction = shift;
-  my $rect = shift;
+  my $rect = shift;  # move passed this one
+  my $fit_rect = shift;  # but need room to squeeze in this one.
 
-  my $nudge_x = shift || 0;
-  my $nudge_y = shift || 0;
+  my $nudge_x   = shift || $self->nudge_x;
+  my $nudge_y   = shift || $self->nudge_y;
 
-  my $w = $rect->width;
-  my $h = $rect->height;
+  # when going 'n' or 'w' have to move the (x,y) point far enough to fit in this rect
+  my $w = $fit_rect->width;
+  my $h = $fit_rect->height;
 
   if ( $direction eq 'e' ) { 
-    $x += ($w + $nudge_x);
+    $x = $rect->x2 + $nudge_x;
   } elsif ( $direction eq 'w' ) {
-    $x -= ($w + $nudge_x);
+    $x = $rect->x1 - $nudge_x - $w;
   } elsif ( $direction eq 's' ) {
-    $y += ($h + $nudge_y);
-  } elsif ( $direction eq 'n' ) {
-    $y -= ($h + $nudge_y);
+    $y = $rect->y2 + $nudge_y;
+  } elsif ( $direction eq 'n') {
+    $y = $rect->y1 - $nudge_y - $h;
   } else {
     croak "direction needs to be one of 'e', 'w', 's', or 'n'";
   }
@@ -872,6 +981,7 @@ sub position_out_of_bounds {
   my $self = shift;
   my $x = shift;
   my $y = shift;
+  $self->hello_sub("checking point ($x, $y)");
 
   my $top_bound   = $self->top_bound || 0;
   my $left_bound  = $self->left_bound || 0; 
@@ -886,8 +996,74 @@ sub position_out_of_bounds {
   } else {
     $out = 0;
   }
+  $self->farewell("out?: $out");
   return $out;
 }
+
+
+
+=item too_close_to_edge
+
+Once we skip passed a placed rectangle, the x,y value may be within bounds, but if the cat 
+can't possibly fit there, we might as well bail.
+
+(TODO But then, that might not be my real problem, and this could be a silly thing to check.
+      more likely the trouble is that I'm going to check, collide with the same rectangle, then 
+      end up getting kicked to the same position where it's going to collide again.)
+
+(Maybe: when crawling north -- and probably west -- I'm stepping far enough: 
+ don't just go past the edge of the overlapping rect, also add the height or width of the 
+ rect.  That sounds right ish... so fook this for now.  DELME.)
+
+Example usage:
+
+  return undef if $self->too_close_to_edge( $x, $y, $direction, $cat ); # cat has height and width
+
+=cut
+
+# TODO status: not completed, not in use
+sub too_close_to_edge {
+  my $self = shift;
+  my $x = shift;
+  my $y = shift;
+  my $direction = shift;
+  my $cat = shift;
+  $self->hello_sub("checking point ($x, $y) in direction: $direction for given cat");
+
+  my $width  = $cat->{width};
+  my $height = $cat->{height};
+
+  my $top_bound   = $self->top_bound || 0;
+  my $left_bound  = $self->left_bound || 0; 
+  my $bot_bound   = $self->bot_bound;
+  my $right_bound = $self->right_bound;
+
+  if ( $direction eq 'e' ) { 
+#    $x = $rect->x2 + $nudge_x;
+  } elsif ( $direction eq 'w' ) {
+#    $x = $rect->x1 - $nudge_x;
+  } elsif ( $direction eq 's' ) {
+#    $y = $rect->y2 + $nudge_y;
+  } elsif ( $direction eq 'n' ) {
+#    $y = $rect->y1 - $nudge_y;
+  } else {
+    croak "direction needs to be one of 'e', 'w', 's', or 'n'";
+  }
+
+
+
+  my $tooclose;
+  if( ( $x < $left_bound || $x > $right_bound ) ||
+      ( $y < $top_bound  || $y > $bot_bound )      
+    ) {
+    $tooclose = 1;
+  } else {
+    $tooclose = 0;
+  }
+  $self->farewell("tooclose?: $tooclose");
+  return $tooclose;
+}
+
 
 
 
@@ -1741,7 +1917,11 @@ ______END_SKULL_BY_SIZE
         category.id,
         category.name
       ORDER BY 
-        metacat.sortcode;
+        metacat.sortcode,
+        metacat.name,
+        metacat.id,
+        category.id,
+        category.name;
 ______END_SKULL_METACAT
   } 
 
@@ -2105,7 +2285,6 @@ sub html_container_footer {
 
 =over 
 
-
 =item hello_sub
 
 =cut
@@ -2173,6 +2352,95 @@ sub dbg {
   $output .= " with $msg" if $msg;
 
   print STDERR "$output\n" if $debug;
+}
+
+
+
+
+=item placed_summary
+
+Dumps a summary of an array of href-based objects to STDERR.
+Examines x1, y1, x2, y2, meta/cat, meta/cat_name, meta/metacat
+
+Also reports width=x2-x1, height=y2-y1.
+
+=cut
+
+sub placed_summary {
+  my $self = shift;
+  my $placed = shift || $self->placed;
+
+  my $count = scalar(@{ $placed });
+  my $class = ref( $placed->[0] );
+
+#  print STDERR "$count objects of $class\n";
+  my $report = "$count objects of $class\n";
+  foreach my $p ( @{ $placed } ) {
+#    my ($x1, $y1, $x2, $y2, $meta) = @{ $p }{ 'x1', 'y1', 'x2', 'y2', 'meta' };
+    my ($x1, $y1, $x2, $y2, $meta) = ( $p->x1, $p->y1, $p->x2, $p->y2, $p->meta );
+    my ($cat, $cat_name, $metacat) = @{ $meta }{ 'cat', 'cat_name', 'metacat' };
+    my ($width, $height) = ( $x2-$x1, $y2-$y1 );
+#     print STDERR "  $cat: $cat_name\t$metacat";
+#     print STDERR "  [ $x1, $y1 ]\t[ $x2, $y2 ]\t" . $width . 'x' . $height. "\n";
+    my $fmt = 
+      qq{%4d: %-10s mc:%-4d [%6.1f,%6.1f]  [%6.1f,%6.1f]  %6.1f x %-6.1f \n};
+    $report .= sprintf $fmt, 
+      $cat, $cat_name, $metacat, $x1, $y1, $x2, $y2, $width, $height;
+  }
+  print STDERR $report;
+  return $report;
+}
+
+=item candidate_dumper
+
+Dumps a list of an array of arefs to stderr in 
+a tighter format than Data:Dumper (which isn't hard).
+
+=cut
+
+sub candidate_dumper {
+  my $self = shift;
+  my $candidates = shift;
+  my $count = scalar(@{ $candidates });
+
+  print STDERR "count of candidates: $count\n";
+  print STDERR '$candidates = [', "\n";
+  foreach my $pair (@{$candidates}) {
+    my ($x, $y) = @{ $pair };
+#    print STDERR "  [ $x, $y ]\n";
+    my $fmt = "   [%6.1f,%6.1f]\n";
+    printf STDERR $fmt, $x, $y;
+  }
+  print STDERR '];', "\n";
+}
+
+
+
+=item meow
+
+Report on a cat hashref, reasonably succinctly.
+
+=cut
+
+sub meow {
+  my $self = shift;
+  my $cat  = shift;
+
+  my $id   = $cat->{id};
+  my $name = $cat->{name};
+
+  my $width  = $cat->{width};
+  my $height = $cat->{height};
+
+  my $x  = $cat->{x};  
+  my $y  = $cat->{y};  
+  
+  my $spots = $cat->{spots};
+  my $spot_count = scalar( @{ $cat->{spots} } );
+  
+  my $report = qq{ $id $name ($x, $y) $width x $height spots: $spot_count };
+  say STDERR $report;
+  return $report;
 }
 
 

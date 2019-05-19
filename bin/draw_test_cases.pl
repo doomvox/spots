@@ -1,3 +1,4 @@
+#!/usr/bin/env perl
 #!/usr/bin/perl
 # draw_test_cases.pl                   doom@kzsu.stanford.edu
 #                                      16 Apr 2019

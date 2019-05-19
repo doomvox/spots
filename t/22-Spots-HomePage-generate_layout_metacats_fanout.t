@@ -14,7 +14,8 @@ use File::Copy      qw( copy move );
 use Fatal           qw( open close mkpath copy move );
 use Cwd             qw( cwd abs_path );
 use Env             qw( HOME );
-use List::MoreUtils qw( any );
+use List::Util      qw( first max maxstr min minstr reduce shuffle sum any );
+use List::MoreUtils qw( zip uniq );
 
 use Test::More;
 
@@ -115,6 +116,8 @@ ___END_SKULL_SET
 
    my $check_x = any { $_ > 5 } map{ $_->{ x_location } } @{ $layout };
    ok( $check_x, "$test_name: not all x = 5" );
+### TODO rethink this-- yes, all x *are* equal to 5.  Why shouldn't they be?
+
    my $check_y = any { $_ > 0 } map{ $_->{ y_location } } @{ $layout };
    ok( $check_y, "$test_name: not all y = 0" );
 
