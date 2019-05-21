@@ -26,7 +26,7 @@ BEGIN {
 
 ok(1, "Traditional: If we made it this far, we're ok.");
 
-# $DB::single = 1;
+{ no warnings 'once'; $DB::single = 1; }
 
 {  my $subname = "generate_layout";
    my $test_name = "Testing $subname";

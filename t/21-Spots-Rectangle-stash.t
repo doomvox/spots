@@ -46,7 +46,7 @@ ok(1, "Traditional: If we made it this far, we're ok.");
    my $expected_meta = { ster => $value };
    is_deeply( $meta, $expected_meta, "$test_name: stashed value is in meta  " ); 
 
-   my $retrieved = $rect-> hsats( $key );
+   my $retrieved = $rect->unstash( $key );
 
    is( $retrieved, $value, "$test_name: retrieved value via hsats checks" );
  }

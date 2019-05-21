@@ -7,7 +7,8 @@ use warnings;
 use strict;
 $|=1;
 my $DEBUG = 1;              # TODO set to 0 before ship
-use Data::Dumper;
+# use Data::Dumper;
+use Data::Dumper::Perltidy;
 use File::Path      qw( mkpath );
 use File::Basename  qw( fileparse basename dirname );
 use File::Copy      qw( copy move );
@@ -85,7 +86,7 @@ ok(1, "Traditional: If we made it this far, we're ok.");
     my ( $row_layout, $max_h ) =
       $obj->generate_layout_for_row( $cats, $initial_x, $initial_y );
 
-   # print STDERR "row_layout: ". Dumper( $row_layout ), "max_h: $max_h"; 
+   print STDERR "row_layout: ". Dumper( $row_layout ), "max_h: $max_h"; 
    my $expected_row_layout =
    #     id    x        y       h     w
      [ [  7,   5,       0,      92,  '27.5' ],

@@ -202,6 +202,7 @@ has sth_cat_size      => (is => 'rw',
 sub builder_html_file {
   my $self = shift;
   my $dir  = $self->output_directory;
+
   my $base = $self->output_basename;
   my $html_file = "$dir/$base.html";
   return $html_file;
@@ -559,11 +560,11 @@ sub create_rectangle_from_cat {
   my $y1 = shift;
   my ($width, $height) = $self->cat_width_height( $cat );
 
-#    my $x2 = sprintf( "%.f",  ($x1 + $width ))    + 0;
+#    my $x2 = sprintf( "%.f",  ($x1 + $width ))    + 0;  # played with forcing numeric: no effect
 #    my $y2 = sprintf( "%.f",  ($y1 + $height ))   + 0;
 
-   my $x2 = $x1 + $width;
-   my $y2 = $y1 + $height;
+   my $x2 = int( $x1 + $width );
+   my $y2 = int( $y1 + $height );
 
   my $rect = Spots::Rectangle->new({ coords => [ $x1, $y1, $x2, $y2 ] });  
   return $rect;

@@ -60,13 +60,14 @@ use FindBin qw($Bin);
 use lib ("$Bin/../lib/");
 use Spots::HomePage; 
 
-use lib ("$Bin/../lib/t/lib");
+# use lib ("$Bin/../lib/t/lib");
+use lib ("$Bin/../t/lib");
 use Spots::Rectangle::TestData ':all';  # draw_placed
 
 # TODO rethink:
 my $base             = shift || "mah_moz_ohm";
 # my $output_directory = shift || cwd();  # First re-think: I hate pwd as default
-my $runny = 'FinFangFoom';
+my $runny = 'Nyrlathotep';
 my $output_directory = shift || "/home/doom/End/Cave/Spots/Output/$runny"; 
 
 mkpath( $output_directory ) unless -d $output_directory;
