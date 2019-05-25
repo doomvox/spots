@@ -67,7 +67,7 @@ use Spots::Rectangle::TestData ':all';  # draw_placed
 # TODO rethink:
 my $base             = shift || "mah_moz_ohm";
 # my $output_directory = shift || cwd();  # First re-think: I hate pwd as default
-my $runny = 'Nyrlathotep';
+my $runny = 'Fenacrone';
 my $output_directory = shift || "/home/doom/End/Cave/Spots/Output/$runny"; 
 
 mkpath( $output_directory ) unless -d $output_directory;
@@ -78,8 +78,8 @@ mkpath( $output_directory ) unless -d $output_directory;
 my $obj = Spots::HomePage->new(
                                output_basename  => $base,
                                output_directory => $output_directory,
-#                               db_database_name => 'spots',
-                                db_database_name => 'spots_test',
+                               db_database_name => 'spots',
+#                                db_database_name => 'spots_test',
 #                               layout_style     => 'metacats_doublezig',
 #                               layout_style     => 'metacats_fanout',
                               );

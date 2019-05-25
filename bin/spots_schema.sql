@@ -2,21 +2,23 @@
    /home/doom/End/Cave/Spots/bin/spots_schema.sql 
    Thursday March  7, 2019   3:52 PM 
    
-   version 2.0, post-2019 series  Rev: March 25, 2019
+   version 4.0, post-2019 series  Rev: May 21, 2019
 
    immediate goal: generation of a browser homepage, ala my old mah_moz_ohm.html
 
 SYNOPSIS
 
-  ### TODO see "createdb" shell command
+  createdb --owner=postgres spots
+  psql -d spots -f /home/doom/End/Cave/Spots/Wall/Spots/bin/spots_schema.sql
+                   
+  sql alternate to createdb:
   CREATE DATABASE spots WITH OWNER='postgres';
-  psql -d spots -f /home/doom/End/Cave/Spots/bin/spots_schema.sql
 
-   */
+*/
 
 /*
 CREATE DATABASE spots WITH OWNER='postgres';
-CONNECT spots;
+CONNECT spots;  -- inside psql monitor would use  \c spots 
 */
 
 CREATE OR REPLACE FUNCTION update_revised_timestamp_function()
@@ -31,17 +33,31 @@ END;
 $$                            
 language 'plpgsql';           
 
+
+CREATE TABLE metacat (
+       id           SERIAL PRIMARY KEY NOT NULL,
+       sortcode     VARCHAR(4),  
+       name         VARCHAR(32)
+);
+
+CREATE TABLE category (
+       id           SERIAL PRIMARY KEY NOT NULL,
+       metacat      INTEGER  REFERENCES metacat (id),
+       name         VARCHAR(32)
+);
+
 CREATE TABLE spots (
        id           SERIAL PRIMARY KEY NOT NULL,
        url          VARCHAR(256) NOT NULL,
-       label        VARCHAR(64),
+       label        VARCHAR(64),  -- short (choosen by me)
        static       BOOLEAN,
-       title        TEXT, -- from <TITLE>
+       title        TEXT,         -- from <TITLE>
        description  TEXT, 
        added        TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
        revised      TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP, -- needs trigger
        live         BOOLEAN,
-       category     INTEGER);
+       category     INTEGER  REFERENCES category (id)
+       );
                               
 /* create a trigger on any table with a 'revised' column */
 CREATE TRIGGER row_mod_on_spot_trigger
@@ -50,45 +66,15 @@ ON spots
 FOR EACH ROW                              
 EXECUTE PROCEDURE update_revised_timestamp_function();
 
-
-CREATE TABLE category (
-       id           SERIAL PRIMARY KEY NOT NULL,
-       metacat      INTEGER,
-       name         VARCHAR(32)
-);
-
-CREATE TABLE metacat (
-       id           SERIAL PRIMARY KEY NOT NULL,
-       category     INTEGER,
-       sortcode     VARCHAR(4),  
-       name         VARCHAR(32)
-);
-
 CREATE TABLE layout (
        id           SERIAL PRIMARY KEY NOT NULL,
-       category    INTEGER,
-       x_location  INTEGER,
-       y_location  INTEGER,
-       height      NUMERIC,  -- in rem:  
-       width       INTEGER   -- in px
+       category     INTEGER UNIQUE NOT NULL REFERENCES category (id),
+       x_location   INTEGER,
+       y_location   INTEGER,
+       height       NUMERIC,  -- in rem:  
+       width        INTEGER   -- in px
 );
 
-CREATE TABLE projects (
-       id  SERIAL PRIMARY KEY NOT NULL,
-       schema_version   VARCHAR(16),    -- e.g. "3.0"
-       name             VARCHAR(128),
-       description      TEXT,
-       changes          TEXT,
-       added            TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
-       revised          TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP, -- needs trigger
-       notes_file       TEXT
-);
-
-CREATE TRIGGER row_mod_on_spot_trigger
-BEFORE UPDATE                             
-ON projects
-FOR EACH ROW                              
-EXECUTE PROCEDURE update_revised_timestamp_function();
 
 /*
 insert into spots (url, label) VALUES ('http://slashdot.net', 'slash'), ('http://www.transbaycalendar.org/', 'transbay');
@@ -99,7 +85,7 @@ update spots set url='https://slashdot.net' where label='slash';
 COPY spots(category,label,url,description) FROM '/home/doom/End/Cave/Spots/dat/spot1.tsv'  DELIMITER E'\t' CSV HEADER;
 */
 
-
+/*
 COPY public.layout (id, category, x_location, y_location, height, width) FROM stdin;
 34	34	123	100	\N	\N
 35	35	151	100	\N	\N
@@ -152,6 +138,7 @@ COPY public.layout (id, category, x_location, y_location, height, width) FROM st
 32	32	732	79	\N	\N
 33	33	5	100	\N	\N
 \.
+*/
 
 
 COPY public.metacat (id, sortcode, name) FROM stdin;
