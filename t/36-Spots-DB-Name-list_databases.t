@@ -20,7 +20,9 @@ use List::MoreUtils qw( zip uniq );
 use Test::More;
 
 BEGIN {
-  use_ok( 'Spots::DB::Name' )
+  use FindBin qw($Bin);
+  use lib ("$Bin/../lib/");
+  use_ok( 'Spots::DB::Name' , )
 }
 
 ok(1, "Traditional: If we made it this far, we're ok.");
@@ -32,7 +34,10 @@ ok(1, "Traditional: If we made it this far, we're ok.");
 {  my $subname = "list_databases";
    my $test_name = "Testing $subname";
 
-    
+   my $obj = Spots::DB::Name->new();
+   my $dbs = $obj->list_databases();
+   say Dumper( $dbs );
+
  }
 
 done_testing();
