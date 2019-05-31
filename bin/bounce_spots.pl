@@ -7,6 +7,10 @@
 #   changing the schema means needing to clean the data,
 #   and this can't help with that (yet?).
 
+# This code has been ported to a module:
+#  /home/doom/End/Cave/Spots/Wall/Spots/lib/Spots/DB.pm
+# The script could be re-written to use it.
+
 =head1 NAME
 
 bounce_spots.pl - re-initialize the spots DATABASE
@@ -22,6 +26,9 @@ bounce_spots.pl - re-initialize the spots DATABASE
   # with alternate DATABASE name
   bounce_spots.pl spots_test  -L
 
+  TODO add a saftey feature that checks database name for "test",
+  but can be overridden with an additional command-line setting 
+  like -U for unsafe.  (or maybe just --unsafe without short-form).
 
 =head1 DESCRIPTION
 
@@ -32,8 +39,9 @@ This is a simple method of accommodating schema changes during development.
 When the project is completed there should be a schema "sql" file that can 
 be easily used for initialization at a different site. 
 
-TODO diving data backups from the schema would make sense if you're thinking 
-about accomodating other users.
+TODO dividing data backups from the schema would make sense if you're thinking 
+about accomodating other users-- they get to customize the data as they like.
+Similarly: fixed data sets tied to particular test files.
 
 There are a number of safety features to reduce the risk of this process: 
 at the outset there are two pg_dump invocations to save both schema and data 
@@ -105,11 +113,11 @@ my $check_size = 10000; # refuse to run if pg_dump files aren't larger
 
 my $sql_file   = "$dbname" . "_schema.sql";
 
-# my $date_stamp = "2019may22"; 
-my $date_stamp = yyyy_month_dd();
+my $date_stamp = yyyy_month_dd();  # e.g. "2019may22"
 
 my $backup_file   = "$dbname-$date_stamp.sql";
 my $backup_r_file = "$dbname-$date_stamp-for_restore.sql";
+
 
 chdir( $backup_loc );
 
@@ -122,14 +130,14 @@ if (-e $backup_r_file ) {
 }
 
 my $backup_cmd = "pg_dump $dbname > $backup_file";
-echo( "backup_cmd: ", $backup_cmd );
+echo_cmd( "backup_cmd: ", $backup_cmd );
 if( $LIVE ) { 
   system( $backup_cmd ) and die "$!: problem with back-up of db $dbname";
 }
 
 # doing a second backup that's pg_restore compatible
 my $backup_r_cmd = "pg_dump --format=c $dbname > $backup_r_file";
-echo( "backup_r_cmd: ", $backup_r_cmd );
+echo_cmd( "backup_r_cmd: ", $backup_r_cmd );
 if( $LIVE ) { 
   system( $backup_r_cmd ) and die "$!: problem with back-up of db $dbname for pg_restore";
 }
@@ -147,13 +155,13 @@ unless( $backup_size > $check_size ) {
 my $db_drop_sql = "DROP DATABASE $dbname";
 my $db_drop_sql_sh = shell_quote_best_effort( $db_drop_sql );
 my $db_drop_cmd = "psql -d postgres -c $db_drop_sql_sh";
-echo( "db_drop_cmd: ", $db_drop_cmd );
+echo_cmd( "db_drop_cmd: ", $db_drop_cmd );
 if( $LIVE ) { 
   system( $db_drop_cmd ) and die "$!: problem with dropping the old DATABASE $dbname";  
 }
 
 my $createdb_cmd = "createdb --owner=postgres $dbname";
-echo( "createdb_cmd: ", $createdb_cmd );
+echo_cmd( "createdb_cmd: ", $createdb_cmd );
 if( $LIVE ) { 
   system( $createdb_cmd ) and die "$!: problem with creation of DATABASE $dbname";
 }
@@ -164,7 +172,7 @@ my $load_schema_psql_cmd = "psql -d $dbname -f $sql_file_sh";
 my $log_file     = "$log_loc/$dbname-$date_stamp.log"; # full path 
 $log_file = uniquify( $log_file );
 my $load_schema_cmd = "$load_schema_psql_cmd > $log_file 2>&1";
-echo( "load_schema_cmd: ", $load_schema_cmd );
+echo_cmd( "load_schema_cmd: ", $load_schema_cmd );
 if( $LIVE ) { 
   system( $load_schema_cmd ) and die "$!: problem loading schema: $sql_file";
 }
@@ -205,15 +213,15 @@ sub yyyy_month_dd {
 
 
 
-=item echo
+=item echo_cmd
 
 Usage:
 
-  echo( "label: ", $string );
+  echo_cmd( "label: ", $string );
 
 =cut
 
-sub echo {
+sub echo_cmd {
   my $label  = shift;
   my $string = shift;
   my $mess = sprintf( "%-17s %s", $label, $string );

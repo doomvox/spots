@@ -305,33 +305,6 @@ __END_CAT_SKULL
 
 
 
-# This might be used by Herd class, to create array of Cats:
-
-#       SELECT
-#         metacat.sortcode  AS mc_ord,
-#         metacat.name      AS mc_name, 
-#         metacat.id        AS metacat,
-#         category.id       AS id,
-#         category.name     AS name,
-#         count(*)          AS cnt
-#       FROM
-#         metacat, category, spots
-#       WHERE
-#         spots.category = category.id AND
-#         category.metacat = metacat.id 
-#       GROUP BY 
-#         metacat.sortcode,
-#         metacat.name,
-#         metacat.id,
-#         category.id,
-#         category.name
-#       ORDER BY 
-#         metacat.sortcode,
-#         metacat.name,
-#         metacat.id,
-#         category.id,
-#         category.name;
-
 
 
 

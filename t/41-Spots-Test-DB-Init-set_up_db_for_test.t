@@ -1,6 +1,6 @@
 # Perl test file, can be run like so:
-#   perl 41-Spots-DB-Init-load_data.t
-#          doom@kzsu.stanford.edu     2019/05/29 19:52:36
+#   perl 41-Spots-Test-DB-Init-set_up_db_for_test.t
+#          doom@kzsu.stanford.edu     2019/05/29 22:54:54
 
 use 5.10.0;
 use warnings;
@@ -20,7 +20,9 @@ use List::MoreUtils qw( zip uniq );
 use Test::More;
 
 BEGIN {
-  use_ok( 'Spots::DB::Init' )
+  use FindBin qw($Bin);
+  use lib ("$Bin/lib/");
+  use_ok( 'Spots::Test::DB::Init' , )
 }
 
 ok(1, "Traditional: If we made it this far, we're ok.");
@@ -29,10 +31,16 @@ ok(1, "Traditional: If we made it this far, we're ok.");
 
 # Insert your test code below.  Consult perldoc Test::More for help.
 
-{  my $subname = "load_data";
+{  my $subname = "builder_db_init";
    my $test_name = "Testing $subname";
 
-    
+   my $obj = Spots::Test::DB::Init->new();
+   my $dbname =
+     $obj->set_up_db_for_test();
+
+   say $dbname;
+   say STDERR "dbname: ", Dumper( $dbname );
+
  }
 
 done_testing();

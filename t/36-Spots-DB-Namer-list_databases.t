@@ -1,6 +1,6 @@
 # Perl test file, can be run like so:
-#   perl 41-Spots.t
-#          doom@kzsu.stanford.edu     2019/05/28 18:07:06
+#   perl 36-Spots-DB-Name-list_databases.t
+#          doom@kzsu.stanford.edu     2019/05/27 13:17:01
 
 use 5.10.0;
 use warnings;
@@ -13,26 +13,35 @@ use File::Basename  qw( fileparse basename dirname );
 use File::Copy      qw( copy move );
 use Fatal           qw( open close mkpath copy move );
 use Cwd             qw( cwd abs_path );
-use Env             qw( HOME );
+use Env             qw( HOME USER );
 use List::Util      qw( first max maxstr min minstr reduce shuffle sum any );
 use List::MoreUtils qw( zip uniq );
 
 use Test::More;
 
 BEGIN {
-  use_ok( 'Spots' )
+  use FindBin qw($Bin);
+  use lib ("$Bin/../lib/");
+  use_ok( 'Spots::DB::Namer' , )
 }
 
 ok(1, "Traditional: If we made it this far, we're ok.");
 
 { no warnings 'once'; $DB::single = 1; }
 
-# Insert your test code below.  Consult perldoc Test::More for help.
-
-{  my $subname = "";
+{  my $subname = "list_databases";
    my $test_name = "Testing $subname";
 
-    
+   my $obj = Spots::DB::Namer->new();
+   my $dbs = $obj->list_databases();
+   # say Dumper( $dbs );
+
+   my @expected = ( 'template0', 'template0', 'postgres', $USER ); 
+   foreach my $expected ( @expected ) {
+     ok( (any{ $_ eq $expected } @{ $dbs } ),
+       "$test_name: found $expected ");
+   }
+
  }
 
 done_testing();

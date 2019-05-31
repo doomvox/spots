@@ -1,6 +1,6 @@
 # Perl test file, can be run like so:
-#   perl 35-Spots-Herd.t
-#          doom@kzsu.stanford.edu     2019/05/24 22:15:56
+#   perl 37-Spots-DB-Name-uniq_database_name.t
+#          doom@kzsu.stanford.edu     2019/05/27 13:37:01
 
 use 5.10.0;
 use warnings;
@@ -20,19 +20,28 @@ use List::MoreUtils qw( zip uniq );
 use Test::More;
 
 BEGIN {
-  use_ok( 'Spots::Herd' )
+  use FindBin qw($Bin);
+  use lib ("$Bin/../lib/");
+  use_ok( 'Spots::DB::Namer' , )
 }
 
 ok(1, "Traditional: If we made it this far, we're ok.");
 
 { no warnings 'once'; $DB::single = 1; }
 
-# Insert your test code below.  Consult perldoc Test::More for help.
-
-{  my $subname = "";
+{  my $subname = "uniq_database_name";
    my $test_name = "Testing $subname";
 
-    
+   my $obj    = Spots::DB::Namer->new();
+   my $dbname =  $obj->uniq_database_name();
+
+   like( $dbname, qr{ ^ [a-zA-Z0-9_]* $}x, "$test_name: returns a string" );
+
+   my $prefix = $obj->prefix;
+   my $suffix = $obj->suffix;
+
+   like( $dbname, qr{ ^ $prefix }x, "$test_name: string has expected prefix" );
+   like( $dbname, qr{ $suffix $ }x, "$test_name: string has expected suffix" );
  }
 
 done_testing();

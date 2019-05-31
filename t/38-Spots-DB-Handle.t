@@ -1,6 +1,6 @@
 # Perl test file, can be run like so:
-#   perl 41-Spots-Test-DB-Init-builder_db_init.t
-#          doom@kzsu.stanford.edu     2019/05/29 22:54:54
+#   perl 38-Spots-DB-Handle.t
+#          doom@kzsu.stanford.edu     2019/05/27 13:37:01
 
 use 5.10.0;
 use warnings;
@@ -20,19 +20,32 @@ use List::MoreUtils qw( zip uniq );
 use Test::More;
 
 BEGIN {
-  use_ok( 'Spots::Test::DB::Init' )
+  use FindBin qw($Bin);
+  use lib ("$Bin/../lib/");
+  use_ok( 'Spots::DB::Handle' , );
 }
 
 ok(1, "Traditional: If we made it this far, we're ok.");
 
 { no warnings 'once'; $DB::single = 1; }
 
-# Insert your test code below.  Consult perldoc Test::More for help.
-
-{  my $subname = "builder_db_init";
+{  my $subname = "new";
    my $test_name = "Testing $subname";
 
-    
+   my $obj    = Spots::DB::Handle->new();
+   is( ref $obj, 'Spots::DB::Handle', "$test_name" );
+
+   $test_name = "Testing dbh accessor";
+   my $dbh = $obj->dbh;
+   is( ref $dbh, 'DBI::db', "$test_name: right class for a db handle" );
+
+   ok( ($dbh->ping), "Testing: using dbh ping" );
+
+   my $sql = "select 'low' AS hell";
+   my $expected = { 'hell' => 'low' };
+   my $href = $dbh->selectrow_hashref($sql);
+   # say Dumper( $href );
+   is_deeply( $href, $expected, "$test_name: simple select" );
  }
 
 done_testing();

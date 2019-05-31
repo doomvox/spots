@@ -85,6 +85,8 @@ my $obj = Spots::HomePage->new(
                               );
 
 
+# $obj->initialize_layout_table_with_cats; # hack to cover architectural stupidity
+
 # TODO does this help? (Q: how hard to add rollback-like feature?)
 # # wipe the coordinate columns in the layout table
 # $obj->clear_layout;

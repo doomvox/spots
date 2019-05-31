@@ -1535,7 +1535,7 @@ Generate the html and css files from the coordinates in the layout table.
 sub html_css_from_layout {
   my $self = shift;
 
-  my $cats_per_row = $self->cats_per_row;
+#  my $cats_per_row = $self->cats_per_row;
 
   my $html_file = $self->html_file;
   my $css_file  = $self->css_file;
@@ -1768,6 +1768,24 @@ sub lookup_cat_and_size {
 }
 
 
+
+=item initialize_layout_table_with_cats
+
+As currently written, the layout table needs to be initialized
+with all the category.id values.  (Hack, hack.)
+
+=cut
+
+sub initialize_layout_table_with_cats {
+  my $self = shift;
+  my $dbh = $self->dbh;
+  my $sql =
+    qq{ INSERT INTO layout (category) SELECT id FROM category };
+  $dbh->do( $sql );
+}
+
+
+
 =item update_layout_for_cat
 
 Store the layout information for a particular cat.
@@ -1996,6 +2014,7 @@ sub sql_for_cat_size {
 # TODO Q: why string interpolation rather than bind params?
 
 # TODO doing an upsert would require a uniqueness contraint on category:
+# (( which I now have-- Sun  May 26, 2019  12:18  fandango ))
 
 #   my $update_sql = 
 #   qq{ INSERT INTO layout (category, x_location, y_location) 
@@ -2015,10 +2034,19 @@ sub sql_to_update_layout {
   my $width      = shift;
   my $height     = shift;
 
+#   my $update_sql = 
+#     qq{UPDATE layout } .
+#     qq{SET x_location=$x, y_location=$y, width=$width, height=$height } .
+#     qq{   WHERE category = $cat_id };
+
   my $update_sql = 
-    qq{UPDATE layout } .
-    qq{SET x_location=$x, y_location=$y, width=$width, height=$height } .
-    qq{   WHERE category = $cat_id };
+  qq{ INSERT INTO layout (category, x_location, y_location) 
+      VALUES ($cat_id, $x, $y) 
+      ON CONFLICT (category) 
+      DO 
+        UPDATE
+          SET x_location=$x, y_location=$y; };
+
   return $update_sql;
 }
 
