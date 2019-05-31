@@ -20,7 +20,7 @@ my $DEBUG = 1;
 
    use Spots::Herd;
    my $obj = Spots::Herd->new();
-   my $all_cat_ids_aref = $obj->cats;
+   my $all_cats = $obj->cats;    # aref of Category objects
 
 =head1 DESCRIPTION
 
@@ -71,7 +71,7 @@ to the names of the object attributes. These attributes are:
 
 { no warnings 'once'; $DB::single = 1; }
 
-has db_dbname => (is => 'rw', isa => Str, default => 'spots' );
+has dbname => (is => 'rw', isa => Str, default => 'spots' );
 
 has dbh       => (is => 'rw', isa => InstanceOf['DBI::db'], lazy=>1,
                          builder => 'builder_db_connection' );
@@ -79,8 +79,9 @@ has dbh       => (is => 'rw', isa => InstanceOf['DBI::db'], lazy=>1,
 has cat_ids   => (is => 'rw', isa => ArrayRef, lazy=>1,
                          builder => 'builder_all_cat_ids' );
 
-has cats      => (is => 'rw', isa => ArrayRef, lazy=>1,   ### TODO tighten up isa: Spots::Category
-                         builder => 'builder_all_cats' );
+has cats      => (is => 'rw',
+                  isa => ArrayRef[InstanceOf['Spots::Category']],
+                  lazy=>1, builder => 'builder_all_cats' );
 
 
 =item builder_all_cat_ids
@@ -123,7 +124,7 @@ sub builder_db_connection {
   my $self = shift;
   # TODO break-out more of these params as object fields
   # TODO add a secrets file to pull auth info from
-  my $dbname = $self->db_dbname; # default 'spots'
+  my $dbname = $self->dbname; # default 'spots'
   my $port = '5432';
   my $data_source = "dbi:Pg:dbname=$dbname;port=$port;";
   my $username = 'doom';

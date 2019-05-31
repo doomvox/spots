@@ -128,8 +128,10 @@ has debug => (is => 'rw', isa => Bool, default => sub{return ($DEBUG||0)});
 
 has db_database_name => (is => 'rw', isa => Str, default => 'spots' );
 
+# GENHTML
 has output_basename  => (is => 'rw', isa => Str,
                          default => 'moz_ohm' );
+# GENHTML
 has output_directory => (is => 'rw', isa => Str,
                          default => "$HOME/End/Cave/Spots/Wall" );
 
@@ -161,8 +163,11 @@ has nudge_y => (is => 'rw', isa => Int,  default => 6   );  # px
 has initial_y          => (is => 'rw', isa => Int,  default => 0    ); # rem 
 has initial_x          => (is => 'rw', isa => Int,  default => 5    ); # px
 
+# GENHTML
 has html_file        => (is => 'rw', isa => Str, lazy => 1,
                          builder => 'builder_html_file' );
+
+# GENHTML
 has css_file         => (is => 'rw', isa => Str, lazy => 1,
                          builder => 'builder_css_file' );
  
@@ -192,6 +197,7 @@ has sth_cat           => (is => 'rw',
                           lazy => 1, builder => 'builder_prep_sth_sql_cat');
 
 # CAT
+# GENHTML -- reads from layout
 has sth_cat_size      => (is => 'rw', 
                           isa => sub {
                             die "$_[0] not a db statement handle"
@@ -201,6 +207,7 @@ has sth_cat_size      => (is => 'rw',
                           builder => 'builder_prep_sth_sql_cat_size');
 
 
+# GENHTML
 sub builder_html_file {
   my $self = shift;
   my $dir  = $self->output_directory;
@@ -210,6 +217,7 @@ sub builder_html_file {
   return $html_file;
 }
 
+# GENHTML
 sub builder_css_file {
   my $self = shift;
   my $dir  = $self->output_directory;
@@ -218,6 +226,7 @@ sub builder_css_file {
   return $css_file;
 }
 
+# GENHTML -- but not in use
 sub builder_html_fh {
   my $self = shift;
   my $html_file = $self->html_file;
@@ -225,6 +234,7 @@ sub builder_html_fh {
   return $html_fh;
 }
 
+# GENHTML -- but not in use
 sub builder_css_fh {
   my $self = shift;
   my $css_file = $self->css_file;
@@ -271,6 +281,7 @@ sub builder_prep_sth_sql_cat {
 =cut
 
 # CAT
+# GENHTML -- reads the layout
 sub builder_prep_sth_sql_cat_size {
   my $self = shift;
   my $dbh = $self->dbh;
@@ -1535,6 +1546,7 @@ Generate the html and css files from the coordinates in the layout table.
 
 =cut
 
+# GENHTML -- reads the layout
 sub html_css_from_layout {
   my $self = shift;
 
@@ -1892,6 +1904,7 @@ Example usage:
 
 =cut
 
+# GENHTML
 sub maximum_height_and_width_of_layout {
   my $self   = shift;
   my $dbh = $self->dbh;
@@ -2000,6 +2013,7 @@ SQL to get position information for a given category.id.
 
 =cut
 
+# GENHTML -- reads the layout
 sub sql_for_cat_size {
   my $self = shift;
   my $sql_pos =
@@ -2124,6 +2138,7 @@ sub clear_layout {
 
 =cut
 
+# GENHTML
 sub colors {
   my $self = shift;
   my $color_scheme = shift || $self->color_scheme;
@@ -2170,6 +2185,7 @@ sub colors {
 
 =cut
 
+# GENHTML
 sub html_header {
   my $self = shift;
   my $title = shift;
@@ -2210,6 +2226,7 @@ Takes one argument, the vertical height of the container div in rem.
 
 =cut
 
+# GENHTML
 sub css_header {
   my $self   = shift;
   my $height = shift || 150;
@@ -2270,6 +2287,7 @@ __END_CSS_HEAD
 
 =cut
 
+# GENHTML
 sub html_footer {
   my $self = shift;
 
@@ -2296,6 +2314,7 @@ __END_HTML_FOOT
 
 =cut
 
+# GENHTML
 sub css_footer {
   my $self = shift;
   my $arg = shift;
@@ -2310,6 +2329,7 @@ __END_CSS_FOOT
 
 =cut
 
+# GENHTML
 sub html_container_head {
   my $self = shift;
   my $arg = shift;
@@ -2326,6 +2346,7 @@ sub html_container_head {
 
 =cut
 
+# GENHTML
 sub html_container_footer {
   my $self = shift;
   my $arg = shift;

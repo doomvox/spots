@@ -70,51 +70,34 @@ to the names of the object attributes. These attributes are:
 
 { no warnings 'once'; $DB::single = 1; }
 
-has id        => (is => 'rw', isa => Int, required=>1 );  
+has debug            => (is => 'rw', isa => Bool, default => sub{return ($DEBUG||0)});
 
-has x_scale   => (is => 'rw', isa => Num, default=>12 );  # average px per char
-has y_scale   => (is => 'rw', isa => Num, default=>1.3 ); # rem per line
+has id               => (is => 'ro', isa => Int, required=>1 );  
+has dbname           => (is => 'rw', isa => Str, default => 'spots' );
+has x_scale          => (is => 'rw', isa => Num, default => 12 );  # average px per char
+has y_scale          => (is => 'rw', isa => Num, default => 1.3 ); # rem per line
 
-has debug     => (is => 'rw', isa => Bool, default => sub{return ($DEBUG||0)});
+has spots            => (is => 'ro', isa => ArrayRef, lazy=>1, builder => 'builder_spots');
+has spot_count       => (is => 'rw', isa => Int,      lazy=>1, builder => 'builder_spot_count');  
 
-has spots      => (is => 'ro', isa => ArrayRef, lazy=>1, builder => 'builder_spots');
+has cat_hash         => (is => 'rw', isa => HashRef,  lazy=>1, builder => 'builder_cat_hash' ); # container href for internal use
+has name             => (is => 'rw', isa => Str,      lazy=>1, builder => sub{ ${ $_[0]->cat_hash }{ name } } );   
+has metacat_id       => (is => 'rw', isa => Int,      lazy=>1, builder => sub{ ${ $_[0]->cat_hash }{ metacat_id } } );   
+has metacat_name     => (is => 'rw', isa => Str,      lazy=>1, builder => sub{ ${ $_[0]->cat_hash }{ metacat_name } } );   
+has metacat_sortcode => (is => 'rw', isa => Str,      lazy=>1, builder => sub{ ${ $_[0]->cat_hash }{ metacat_sortcode } } );   
 
-has spot_count => (is => 'rw', isa => Int,      lazy=>1, builder => 'builder_spot_count');  
+has height           => (is => 'ro', isa => Num,  lazy=>1, builder => 'builder_height' );   # rem (from spot_count)
+has width            => (is => 'ro', isa => Int,  lazy=>1, builder => 'builder_width' );    # px  (from spot labels)
 
-# cat_hash container: has builders to access, pop from db, but might be set by a Herd.
-#         metacat.sortcode  AS metacat_sortcode,
-#         metacat.name      AS metacat_name, 
-#         metacat.id        AS metacat_id,
-#         category.name     AS name
+has dbh              => (is => 'rw', isa => InstanceOf['DBI::db'], lazy=>1, builder => 'builder_db_connection' );
+has sth_spots        => (is => 'rw', isa => InstanceOf['DBI::st'], lazy=>1, builder => 'builder_prep_sth_sql_spots');
+has sth_cat          => (is => 'rw', isa => InstanceOf['DBI::st'], lazy=>1, builder => 'builder_prep_sth_sql_cat');
+has sth_x_y          => (is => 'rw', isa => InstanceOf['DBI::st'], lazy=>1, builder => 'builder_prep_sth_x_y_location');
 
-has cat_hash     => (is => 'rw', isa => HashRef,  lazy=>1, builder => 'builder_cat_hash' );   
+has x_y_location     => (is => 'rw', isa => HashRef,  lazy=>1, builder => 'builder_x_y_location' ); # container href for internal use
+has x_location       => (is => 'rw', isa => Int,      lazy=>1, builder => sub{ ${ $_[0]->x_y_location }{ x_location } } );   
+has y_location       => (is => 'rw', isa => Str,      lazy=>1, builder => sub{ ${ $_[0]->x_y_location }{ y_location } } );   
 
-has name         => (is => 'rw', isa => Str,      lazy=>1,
-                      builder => sub{ return ${ $_[0]->cat_hash }{ name } } );   
-
-has metacat_id   => (is => 'rw', isa => Int,      lazy=>1,
-                      builder => sub{ return ${ $_[0]->cat_hash }{ metacat_id } } );   
-
-has metacat_name => (is => 'rw', isa => Str,      lazy=>1,
-                      builder => sub{ return ${ $_[0]->cat_hash }{ metacat_name } } );   
-
-has metacat_sortcode => (is => 'rw', isa => Str,      lazy=>1,
-                      builder => sub{ return ${ $_[0]->cat_hash }{ metacat_sortcode } } );   
-
-has height  => (is => 'ro', isa => Num,  lazy=>1, builder => 'builder_height' );   # rem (from spot_count)
-has width   => (is => 'ro', isa => Int,  lazy=>1, builder => 'builder_width' );    # px  (from spot labels)
-
-
-has db_dbname => (is => 'rw', isa => Str, default => 'spots' );
-
-has dbh       => (is => 'rw', isa => InstanceOf['DBI::db'], lazy=>1,
-                         builder => 'builder_db_connection' );
-
-has sth_spots => (is => 'rw', isa => InstanceOf['DBI::st'], lazy=>1,
-                         builder => 'builder_prep_sth_sql_spots');
-
-has sth_cat   => (is => 'rw', isa => InstanceOf['DBI::st'], lazy=>1,
-                         builder => 'builder_prep_sth_sql_cat');
 
 =item builder_spots
 
@@ -218,7 +201,7 @@ sub builder_db_connection {
   my $self = shift;
   # TODO break-out more of these params as object fields
   # TODO add a secrets file to pull auth info from
-  my $dbname = $self->db_dbname; # default 'spots'
+  my $dbname = $self->dbname; # default 'spots'
   my $port = '5432';
   my $data_source = "dbi:Pg:dbname=$dbname;port=$port;";
   my $username = 'doom';
@@ -252,6 +235,40 @@ sub builder_prep_sth_sql_cat {
   my $sth_cat = $dbh->prepare( $sql_cat );
   return $sth_cat;
 }
+
+
+
+=item builder_prep_sth_x_y_location
+
+=cut
+
+sub builder_prep_sth_x_y_location {
+  my $self = shift;
+  my $dbh = $self->dbh;
+  my $sql_cat = $self->sql_for_cat();
+  my $sql = 
+   qq{ SELECT x_location, y_location FROM layout WHERE category = ? };
+  my $sth = $dbh->prepare( $sql );
+  return $sth;
+}
+
+=item builder_x_y_location
+
+=cut
+
+sub builder_x_y_location {
+  my $self = shift;
+  my $cat_id = $self->id;  
+  my $sth = $self->sth_x_y();
+  $sth->execute( $cat_id );
+  my $x_y_hash = $sth->fetchrow_hashref(); 
+  unless( defined( $x_y_hash->{ x_location } ) &&
+          defined( $x_y_hash->{ y_location } ) ) { 
+    carp "layout table has no x/y values for cat: $cat_id.";
+  }
+  return $x_y_hash;
+}
+
 
 
 =back
@@ -313,6 +330,18 @@ __END_CAT_SKULL
 
 
 =back
+
+=head1 TODO 
+
+The cat_hash container href might be set by the Herd class for efficiency:
+
+# cat_hash container: has builders to populate from db, but could also be set by Herd.
+#         metacat.sortcode  AS metacat_sortcode,
+#         metacat.name      AS metacat_name, 
+#         metacat.id        AS metacat_id,
+#         category.name     AS name
+
+
 
 =head1 AUTHOR
 

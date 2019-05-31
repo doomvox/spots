@@ -31,7 +31,8 @@ ok(1, "Traditional: If we made it this far, we're ok.");
 {  my $subname = "builder_db_connection";
    my $test_name = "Testing Category class";
 
-   my $obj = Spots::Category->new( { id=>1 } );
+#   my $obj = Spots::Category->new( { id=>1 } );  # dbname ?
+   my $obj = Spots::Category->new( { id=>1, dbname => 'spots_test' } ); 
 
    my $cat_hash = $obj->cat_hash;
    is( ref $cat_hash, 'HASH', "Testing cat_hash" );
