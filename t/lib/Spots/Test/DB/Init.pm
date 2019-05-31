@@ -105,10 +105,14 @@ to the names of the object attributes. These attributes are:
 
 { no warnings 'once'; $DB::single = 1; }
 
-has test_prefix  => ( is => 'rw', isa => Str, lazy => 1, builder => 'builder_test_prefix' );
-has data_loc     => ( is => 'rw', isa => Str, lazy => 1, builder => 'builder_data_loc' );
-has src_loc      => ( is => 'rw', isa => Str, lazy => 1, builder => 'builder_src_loc' );
-has out_loc      => ( is => 'rw', isa => Str, lazy => 1, builder => 'builder_out_loc' );
+# NN, a two digit number
+has test_prefix         => ( is => 'rw', isa => Str, lazy => 1, builder => 'builder_test_prefix' );
+
+has t_src_general_loc   => ( is => 'rw', isa => Str, lazy => 1, builder => 'builder_t_src_general_loc' );
+has t_src_specific_loc  => ( is => 'rw', isa => Str, lazy => 1, builder => 'builder_t_src_specific_loc' );
+
+# could also be called "t_out_specific_loc"
+has out_loc             => ( is => 'rw', isa => Str, lazy => 1, builder => 'builder_out_loc' );
 
 has dbnamer      => ( is => 'rw', isa => InstanceOf['Spots::DB::Namer'], lazy => 1,
                       builder => sub{ Spots::DB::Namer->new() } );
@@ -126,11 +130,13 @@ has db_init      => ( is => 'rw', isa => InstanceOf['Spots::DB::Init'], lazy => 
 has src_path     => ( is => 'rw', isa => ArrayRef, lazy => 1,
                       builder => 'builder_src_path');
 
-has schema_file   => ( is => 'rw', isa => Str, lazy => 1, builder => 'builder_schema_file' );
-has data_file     => ( is => 'rw', isa => Str, lazy => 1, builder => 'builder_data_file' );
+has db_schema_file   => ( is => 'rw', isa => Str, lazy => 1, builder => 'builder_db_schema_file' );
+has db_data_file     => ( is => 'rw', isa => Str, lazy => 1, builder => 'builder_db_data_file' );
 
 
 =item builder_test_prefix
+
+Extracts the two digit number from the prefix to the test file name.
 
 =cut
 
@@ -153,45 +159,53 @@ sub builder_test_prefix {
       }
     }
   }
-  return $prefix;
+  my $two_digit = sprintf( "%02d", $prefix );
+  return $two_digit;
 }
 
 
 
-=item builder_data_loc
+=item builder_t_src_general_loc
+
+Path to the project-wide ("general") source files to be used by tests.
 
 =cut
 
-sub builder_data_loc {
+sub builder_t_src_general_loc {
   my $self = shift;
-  my $test_prefix = sprintf( "%02d", $self->test_prefix);
-  my $dat_loc = "$Bin/dat/t" . $test_prefix;
-  mkpath( $dat_loc ) unless -d $dat_loc;
-  return $dat_loc;
+  my $t_src_general = "$Bin/src";
+  mkpath( $t_src_general ) unless -d $t_src_general;
+  return $t_src_general;
 }
 
-=item builder_src_loc
+
+=item builder_t_src_specific_loc
+
+Path to the test-specific source files for the current test. 
+Files in this location take precedence over the general location.
 
 =cut
 
-sub builder_src_loc {
+sub builder_t_src_specific_loc {
   my $self = shift;
-  my $data_loc = $self->data_loc;
-  my $src_loc = "$data_loc/src";
-  mkpath( $src_loc ) unless -d $src_loc;
-  return $src_loc;
+  my $t_src = $self->t_src_general_loc;
+  my $test_prefix = $self->test_prefix;
+  my $general_t_dat_loc = "$t_src/t" . $test_prefix;  # t/src/tNN
+  mkpath( $general_t_dat_loc ) unless -d $general_t_dat_loc;
+  return $general_t_dat_loc;
 }
-
-
 
 =item builder_out_loc
+
+According to our naming convention, this might be called the "t_out_specific_loc", 
+but we don't expect to use s "general" one, so we just call it the "out_loc".
 
 =cut
 
 sub builder_out_loc {
   my $self = shift;
-  my $data_loc = $self->data_loc;
-  my $out_loc = "$data_loc/out";
+  my $test_prefix = $self->test_prefix;
+  my $out_loc = "$Bin/out/t" . $test_prefix;   # t/out/tNN
   mkpath( $out_loc ) unless -d $out_loc;
   return $out_loc;
 }
@@ -215,67 +229,67 @@ use the same schema as the other tests, but a specific data set.
 
 =cut
 
-# TODO this feature may be redundant with the src_loc settings, and so on.
+# TODO this feature may be redundant with the t_src_general settings, and so on.
 #      clarify the situation, then look for crufty features to remove.
 sub builder_src_path {
   my $self = shift;
   my $test_prefix = $self->test_prefix;
-  my $data_loc = $self->data_loc;
+  my $general_t_dat_loc = $self->general_t_dat_loc;
 
-  my $general  = "$data_loc/src";
-  my $specific = "$data_loc/$test_prefix/src";
+  my $general  = "$general_t_dat_loc/src";
+  my $specific = "$general_t_dat_loc/$test_prefix/src";
 
   my @path = ( $general, $specific );
   return \@path;
 }
 
-=item builder_schema_file
+=item builder_db_schema_file
 
 =cut
 
-sub builder_schema_file {
+sub builder_db_schema_file {
   my $self = shift;
   my $dbnamer = $self->dbnamer;
   my $prefix = $dbnamer->prefix;
   
-  my $schema_file        = $prefix . "schema.sql";  # spots_schema.sql
+  my $db_schema_file        = $prefix . "schema.sql";  # spots_schema.sql
 
   my $src_path = $self->src_path;
-  my $full_schema_file = '';
+  my $full_db_schema_file = '';
  LOC:
   foreach my $loc ( reverse @{ $src_path } ) { 
-    my $trial = "$loc/$schema_file";
+    my $trial = "$loc/$db_schema_file";
     if (-e $trial ) {
-      $full_schema_file = $trial;
+      $full_db_schema_file = $trial;
       last LOC;
     }
   }
-  return $full_schema_file;
+  return $full_db_schema_file;
 }
 
 
 
-=item builder_data_file
+=item builder_db_data_file
 
 =cut
 
-sub builder_data_file {
+sub builder_db_data_file {
   my $self = shift;
   my $dbnamer = $self->dbnamer;
   my $prefix = $dbnamer->prefix;
   my $db_data_file       = $prefix . "data.sql"; # spots_data.sql
 
   my $src_path = $self->src_path;
-  my $full_data_file = '';
+  my $full_db_data_file = '';
  LOC:
   foreach my $loc ( reverse @{ $src_path } ) { 
     my $trial = "$loc/$db_data_file";
     if (-e $trial ) {
-      $full_data_file = $trial;
+      $full_db_data_file = $trial;
       last LOC;
     }
   }
-  return $full_data_file;
+  return $full_db_data_file;
 }
 
 
@@ -285,12 +299,12 @@ sub builder_data_file {
 
 sub builder_db_init {
   my $self = shift;
-  my $data_file = $self->data_file;
-  my $out_loc   = $self->out_loc;
-  my $src_loc   = $self->src_loc;
+  my $db_data_file = $self->db_data_file;
+  my $out_loc   = $self->out_loc;   ### over-riddent by db_data_file settting
+  my $src_loc   = $self->src_loc;   ### over-ridden by db_schema_file setting
 
   # searches path (specific and general locations), names have full path
-  my $schema_file = $self->schema_file;
+  my $db_schema_file = $self->db_schema_file;
 
   my $dbname = $self->dbname;
   my $sidb =
@@ -301,11 +315,11 @@ sub builder_db_init {
                                unsafe             => 0,
                                log_loc            => "$out_loc",
                                backup_loc         => "$out_loc",
-                               schema_loc         => "$src_loc", 
-                               data_loc           => "$src_loc", 
+                               db_schema_loc      => "$src_loc", 
+                               db_schema_file     => "$db_schema_file",   # full path overrides above *_loc
 
-                               schema_file        => "$schema_file",   # full path okay to override *_loc?
-                               db_data_file       => "$data_file", 
+                               db_data_loc        => "$src_loc", 
+                               db_data_file       => "$db_data_file",     # full path overrides above *_loc
 
                              # Guessing that these defaults are okay for now:
                              #  schema_backup_file => "$schema_backup_file", 
@@ -349,13 +363,13 @@ sub set_up_db_for_test {
 
 sub check_for_schema_sql {
   my $self = shift;
-  my $schema_file = $self->schema_file;
+  my $db_schema_file = $self->db_schema_file;
   my $found;
-  if( -e $schema_file ) {
+  if( -e $db_schema_file ) {
     $found = 1;
   } else {
     $found = 0;
-    carp( "Missing db init schema sql file: $schema_file" );
+    carp( "Missing db init schema sql file: $db_schema_file" );
   }
   return $found;
 }
@@ -367,13 +381,13 @@ sub check_for_schema_sql {
 
 sub check_for_data_sql {
   my $self = shift;
-  my $data_file = $self->data_file;
+  my $db_data_file = $self->db_data_file;
   my $found;
-  if( -e $data_file ) {
+  if( -e $db_data_file ) {
     $found = 1;
   } else {
     $found = 0;
-    carp( "Missing db init data sql file: $data_file" );
+    carp( "Missing db init data sql file: $db_data_file" );
   }
   return $found;
 }
@@ -386,18 +400,18 @@ sub check_for_data_sql {
 
 sub check_for_setup_sql {
   my $self = shift;
-  my $schema_file = $self->schema_file;
-  my $data_file   = $self->data_file;
+  my $db_schema_file = $self->db_schema_file;
+  my $db_data_file   = $self->db_data_file;
 
-  my $schema_exists = ( -e $schema_file  );
-  my $data_exists   = ( -e $data_file  );
+  my $schema_exists = ( -e $db_schema_file  );
+  my $data_exists   = ( -e $db_data_file  );
 
   my $mess = '';
   unless( $schema_exists ) {
-    $mess .= 'schema_file: $schema_file ';
+    $mess .= 'db_schema_file: $db_schema_file ';
   }
   unless( $data_exists ) {
-    $mess .= 'data_file: $data_file ';
+    $mess .= 'db_data_file: $db_data_file ';
   }
   my $setup_okay = 0;
   if( $schema_exists && $data_exists ) {

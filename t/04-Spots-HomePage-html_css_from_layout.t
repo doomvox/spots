@@ -33,7 +33,8 @@ ok(1, "Traditional: If we made it this far, we're ok.");
    my $test_name = "Testing $subname";
 
    my $base = "t04";
-   my $output_directory = "$Bin/dat/$base";
+#   my $output_directory = "$Bin/dat/$base";
+   my $output_directory = "$Bin/src/$base";
 
    mkpath $output_directory unless -d $output_directory;
 

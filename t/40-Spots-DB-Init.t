@@ -19,14 +19,15 @@ use List::MoreUtils qw( zip uniq );
 
 use Test::More;
 
-my $DAT_LOC;
+my $SRC_LOC;
 BEGIN {
   use FindBin qw($Bin);
   use lib ("$Bin/../lib/");
   use_ok( 'Spots::DB::Init' , );
-  use_ok( 'Spots::DB::Namer' , );
+  use_ok( 'Spots::DB::Init::Namer' , );
   use_ok( 'Spots::DB::Handle' , );
-  $DAT_LOC = "$Bin/dat/t40";
+#  $SRC_LOC = "$Bin/dat/t40";
+  $SRC_LOC = "$Bin/src/t40";
 }
 
 ok(1, "Traditional: If we made it this far, we're ok.");
@@ -36,23 +37,23 @@ ok(1, "Traditional: If we made it this far, we're ok.");
 {  my $subname = "";
    my $test_name = "Testing $subname";
 
-   my $dbnamer = Spots::DB::Namer->new();
+   my $dbnamer = Spots::DB::Init::Namer->new();
    my $dbname = $dbnamer->uniq_database_name();  
    say "dbname: $dbname"; # dbname: spots_fandango_27171_20423_test
    my $prefix = $dbnamer->prefix;
    my $suffix = $dbnamer->suffix;
 
-   my $src_loc = "$DAT_LOC/src";
-   my $out_loc = "$DAT_LOC/out";
+   my $src_loc = "$SRC_LOC/src";
+   my $out_loc = "$SRC_LOC/out";
    mkpath( $src_loc ) unless -d $src_loc;
    mkpath( $out_loc ) unless -d $out_loc;
 
    my $date_stamp = $dbnamer->yyyy_month_dd;
 
    # /home/doom/End/Cave/Spots/Wall/Spots/t/dat/t40/src/spots_schema.sql
-   my $schema_file        = $src_loc . '/' . $prefix . "schema.sql";
+   my $db_schema_file        = $src_loc . '/' . $prefix . "schema.sql";
    # /home/doom/End/Cave/Spots/Wall/Spots/t/dat/t40/src/spots_data.sql
-   my $data_file       = $src_loc . '/' . $prefix . "data.sql"; 
+   my $db_data_file       = $src_loc . '/' . $prefix . "data.sql"; 
 
    my $schema_backup_file = $out_loc . '/' . $prefix . "schema" . '_' . "$date_stamp.sql";
    my $data_backup_file   = $out_loc . '/' . $prefix . "data"   . '_' . "$date_stamp.sql";
@@ -74,8 +75,8 @@ ok(1, "Traditional: If we made it this far, we're ok.");
                                    data_backup_file   => "$data_backup_file", 
                                    pg_restore_file    => "$pg_restore_file", 
                                    log_file           => "$log_file", 
-                                   schema_file        => "$schema_file", 
-                                   data_file          => "$data_file", 
+                                   db_schema_file     => "$db_schema_file", 
+                                   db_data_file       => "$db_data_file", 
 
                                  });
 
@@ -121,6 +122,7 @@ ok(1, "Traditional: If we made it this far, we're ok.");
 
    # breakdown
    $test_name = "Testing drop_db";
+   $sidb->verbose( 1 );
    $sidb->drop_db(); # unless in unsafe mode, refuses to work if not named *_test
    $all_databases = $dbnamer->list_databases;
    $found = any{ $dbname eq $_ } @{ $all_databases };

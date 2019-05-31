@@ -54,7 +54,7 @@ use Env             qw( HOME USER );
 use List::Util      qw( first max maxstr min minstr reduce shuffle sum any );
 use List::MoreUtils qw( zip uniq );
 use String::ShellQuote qw( shell_quote );
-use Spots::DB::Namer;
+use Spots::DB::Init::Namer;
 
 # use DBI;  # at present this is unnecessary
 
@@ -94,29 +94,31 @@ has unsafe  => ( is => 'rw', isa => Bool, default => 0 );
 
 # TODO default locations are tuned up for the way I'm working-- revise if shipped
 has spots_loc   => ( is => 'rw', isa => Str, default => "$HOME/End/Cave/Spots" ); 
-has log_loc     => ( is => 'rw', isa => Str,
+has log_loc     => ( is => 'rw', isa => Str, lazy=>1, 
                      default => sub{ my $self = shift;
                                      my $spots_loc=$self->spots_loc;
                                      my $loc = "$spots_loc/Output";
                                      return $loc;
                                    } ); 
-has backup_loc  => ( is => 'rw', isa => Str,
+has backup_loc  => ( is => 'rw', lazy=>1, isa => Str,
                      default => sub{ my $self = shift;
                                      my $spots_loc=$self->spots_loc;
                                      my $loc = "$spots_loc/Bak";
                                      return $loc;
                                    } ); 
 
-has schema_loc  => ( is => 'rw', isa => Str,
+has db_schema_loc  => ( is => 'rw', lazy=>1, isa => Str,
                      default => sub{ my $self = shift;
                                      my $spots_loc=$self->spots_loc;
+                                     say STDERR "TINGLER: spots_loc: $spots_loc";
                                      my $loc = "$spots_loc/Wall/Spots/bin";
                                      return $loc;
                                    } ); 
 
-has data_loc    => ( is => 'rw', isa => Str,
+has db_data_loc    => ( is => 'rw', lazy=>1, isa => Str,
                      default => sub{ my $self = shift;
-                                     my $spots_loc=$self->spots_loc;
+                                     my $spots_loc = $self->spots_loc;
+                                     say STDERR "WILLARD: spots_loc: $spots_loc";
                                      my $loc = "$spots_loc/Wall/Spots/bin";
                                      return $loc;
                                    } ); 
@@ -176,22 +178,22 @@ has log_file => ( is => 'rw', isa => Str, lazy=>1,
                                               return $uni;
                                             }  ); 
 
-has schema_file => ( is => 'rw', isa => Str, lazy=>1,
+has db_schema_file => ( is => 'rw', isa => Str, lazy=>1,
                              default => sub { my $self = shift;
                                               # my $date_stamp = $self->yyyy_month_dd(); # e.g. "2019may22"
                                               my $prefix = $self->prefix;
                                               my $name = "$prefix-schema.sql";
-                                              my $loc  = $self->schema_loc;
+                                              my $loc  = $self->db_schema_loc;
                                               my $full = "$loc/$name";
                                               return $full;
                                             }  ); 
 
 
-has data_file => ( is => 'rw', isa => Str, lazy=>1,
+has db_data_file => ( is => 'rw', isa => Str, lazy=>1,
                              default => sub { my $self = shift;
                                               my $dbname = $self->dbname;
                                               my $name = "$dbname-data.sql";
-                                              my $loc  = $self->data_loc;
+                                              my $loc  = $self->db_data_loc;
                                               my $full = "$loc/$name";
                                               return $full;
                                             }  ); 
@@ -359,12 +361,13 @@ sub drop_db {
   }
 
   my $namer = $self->db_init_namer;
-  unless( $namer->db_exists( $dbname ) ) { 
-    carp "This $dbname does not exist we will skip trying to drop it: $dbname";
+  if( $namer->db_exists( $dbname ) ) { 
     my $db_drop_sql = "DROP DATABASE $dbname";
     my $db_drop_sql_sh = shell_quote( $db_drop_sql );
     my $db_drop_cmd = "psql -d postgres -c $db_drop_sql_sh";
     $self->safe_system( $db_drop_cmd, "db_drop_cmd" );
+  } else {
+    carp "This $dbname does not exist we will skip trying to drop it: $dbname";
   }
 }
 
@@ -402,9 +405,9 @@ sub load_schema {
 
   my $log_file = $self->log_file;
 
-  my $schema_file = $self->schema_file;
+  my $db_schema_file = $self->db_schema_file;
   
-  my $sql_file_sh = shell_quote( $schema_file );
+  my $sql_file_sh = shell_quote( $db_schema_file );
   my $load_schema_psql_cmd = "psql -d $dbname -f $sql_file_sh";
 
   my $load_schema_cmd = "$load_schema_psql_cmd >> $log_file 2>&1";
@@ -422,10 +425,10 @@ sub load_data {
 
   my $log_file = $self->log_file;
 
-  my $data_file = $self->data_file;
+  my $db_data_file = $self->db_data_file;
   
-  my $data_file_sh = shell_quote( $data_file );
-  my $load_db_data_psql_cmd = "psql -d $dbname -f $data_file_sh";
+  my $db_data_file_sh = shell_quote( $db_data_file );
+  my $load_db_data_psql_cmd = "psql -d $dbname -f $db_data_file_sh";
 
   my $load_db_data_cmd = "$load_db_data_psql_cmd >> $log_file 2>&1";
   $self->safe_system( $load_db_data_cmd, "load_db_data_cmd" );

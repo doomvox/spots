@@ -35,7 +35,8 @@ use Spots::Rectangle::TestData qw(:all);  # draw_placed
 
 ok(1, "Traditional: If we made it this far, we're ok.");
 
-my $output_directory = "$Bin/dat/t28";
+#my $output_directory = "$Bin/dat/t28";
+my $output_directory = "$Bin/src/t28";
 mkpath( $output_directory ) unless -d $output_directory;
 
 { no warnings 'once'; $DB::single = 1; }

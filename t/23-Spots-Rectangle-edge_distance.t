@@ -30,7 +30,8 @@ ok(1, "Traditional: If we made it this far, we're ok.");
 
 { no warnings 'once'; $DB::single = 1; }
 
-my $pic_loc = "$Bin/dat/t23";
+#my $pic_loc = "$Bin/dat/t23";
+my $pic_loc = "$Bin/src/t23";
 mkpath( $pic_loc ) unless -d $pic_loc;
 
 {  my $subname   = "edge_distance";

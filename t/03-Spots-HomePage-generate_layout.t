@@ -32,7 +32,8 @@ ok(1, "Traditional: If we made it this far, we're ok.");
    my $test_name = "Testing $subname";
 
    my $base = "t03";
-   my $output_directory = "$Bin/dat/$base";
+   # my $output_directory = "$Bin/dat/$base";
+   my $output_directory = "$Bin/src/$base";
 
    my $obj = Spots::HomePage->new(
                                    output_basename  => $base,
