@@ -80,7 +80,7 @@ use List::MoreUtils qw( zip uniq );
 use String::ShellQuote qw( shell_quote );
 
 use Spots::DB::Init;
-use Spots::DB::Namer;
+use Spots::DB::Init::Namer;
 use Spots::DB::Handle;
 
 use FindBin qw($Bin);
@@ -114,8 +114,8 @@ has t_src_specific_loc  => ( is => 'rw', isa => Str, lazy => 1, builder => 'buil
 # could also be called "t_out_specific_loc"
 has out_loc             => ( is => 'rw', isa => Str, lazy => 1, builder => 'builder_out_loc' );
 
-has dbnamer      => ( is => 'rw', isa => InstanceOf['Spots::DB::Namer'], lazy => 1,
-                      builder => sub{ Spots::DB::Namer->new() } );
+has dbnamer      => ( is => 'rw', isa => InstanceOf['Spots::DB::Init::Namer'], lazy => 1,
+                      builder => sub{ Spots::DB::Init::Namer->new() } );
 
 has dbname       => ( is => 'ro', isa => Str, lazy => 1,
                       builder => sub{ my $self =  shift;
@@ -219,7 +219,7 @@ one for all of the tests, the next specific to a particular *.t file.
 Typically that means 
 
   $Bin/dat/src
-  $Bin/dat/tNN/src
+  $Bin/dat/src/tNN
 
 Where "NN" is the numeric prefix from the name of a particular test file.
 
@@ -229,15 +229,10 @@ use the same schema as the other tests, but a specific data set.
 
 =cut
 
-# TODO this feature may be redundant with the t_src_general settings, and so on.
-#      clarify the situation, then look for crufty features to remove.
 sub builder_src_path {
   my $self = shift;
-  my $test_prefix = $self->test_prefix;
-  my $general_t_dat_loc = $self->general_t_dat_loc;
-
-  my $general  = "$general_t_dat_loc/src";
-  my $specific = "$general_t_dat_loc/$test_prefix/src";
+  my $general  = $self->t_src_general_loc;
+  my $specific = $self->t_src_specific_loc;
 
   my @path = ( $general, $specific );
   return \@path;
@@ -278,7 +273,6 @@ sub builder_db_data_file {
   my $dbnamer = $self->dbnamer;
   my $prefix = $dbnamer->prefix;
   my $db_data_file       = $prefix . "data.sql"; # spots_data.sql
-
   my $src_path = $self->src_path;
   my $full_db_data_file = '';
  LOC:
@@ -299,12 +293,13 @@ sub builder_db_data_file {
 
 sub builder_db_init {
   my $self = shift;
-  my $db_data_file = $self->db_data_file;
-  my $out_loc   = $self->out_loc;   ### over-riddent by db_data_file settting
-  my $src_loc   = $self->src_loc;   ### over-ridden by db_schema_file setting
+
+  my $out_loc   = $self->out_loc;   
+  my $src_loc   = $self->t_src_general_loc;   # for lack of better, use the general (TODO needed?)
 
   # searches path (specific and general locations), names have full path
   my $db_schema_file = $self->db_schema_file;
+  my $db_data_file   = $self->db_data_file;
 
   my $dbname = $self->dbname;
   my $sidb =
@@ -315,10 +310,11 @@ sub builder_db_init {
                                unsafe             => 0,
                                log_loc            => "$out_loc",
                                backup_loc         => "$out_loc",
-                               db_schema_loc      => "$src_loc", 
+
+                               db_schema_loc      => "$src_loc",  # TODO needed?
                                db_schema_file     => "$db_schema_file",   # full path overrides above *_loc
 
-                               db_data_loc        => "$src_loc", 
+                               db_data_loc        => "$src_loc",  # TODO needed?
                                db_data_file       => "$db_data_file",     # full path overrides above *_loc
 
                              # Guessing that these defaults are okay for now:
@@ -345,8 +341,9 @@ sub set_up_db_for_test {
   my $sidb = $self->db_init;
   $sidb->live( 1 );
 
+  $sidb->create_db;
   if( $self->check_for_schema_sql ) { 
-    $sidb->create_db;
+    $sidb->load_schema;
     if( $self->check_for_data_sql ) { 
       $sidb->load_data;
     }

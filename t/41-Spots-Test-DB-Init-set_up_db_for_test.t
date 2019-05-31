@@ -22,7 +22,8 @@ use Test::More;
 BEGIN {
   use FindBin qw($Bin);
   use lib ("$Bin/lib/");
-  use_ok( 'Spots::Test::DB::Init' , )
+  use_ok( 'Spots::Test::DB::Init' , );
+  use_ok( 'Spots::DB::Handle' , );
 }
 
 ok(1, "Traditional: If we made it this far, we're ok.");
@@ -34,13 +35,34 @@ ok(1, "Traditional: If we made it this far, we're ok.");
 {  my $subname = "builder_db_init";
    my $test_name = "Testing $subname";
 
-   my $obj = Spots::Test::DB::Init->new();
+   my $tidb = Spots::Test::DB::Init->new();
    my $dbname =
-     $obj->set_up_db_for_test();
+     $tidb->set_up_db_for_test();
 
    say $dbname;
    say STDERR "dbname: ", Dumper( $dbname );
 
+   my $dbhh = Spots::DB::Handle->new({ dbname => $dbname });
+   my $dbh = $dbhh->dbh;
+
+   my $sql = "select count(*) AS c from  category";
+   my $expected = { c => 3 };
+   my $href = $dbh->selectrow_hashref($sql);
+   # say Dumper( $href );
+   is_deeply( $href, $expected, "$test_name: count rows in category table" );
+
+   $sql = "select name from  category";
+   # $expected = [ { name => 'oakland' }, {name => 'sf'}, {name => 'jobs'} ];
+   $expected = [ [ 'oakland' ], [ 'sf' ], [ 'jobs' ] ];
+
+   my $aref = $dbh->selectall_arrayref($sql);
+   # say Dumper( $aref );
+   is_deeply( $aref, $expected, "$test_name: count rows in category table" );
+
+   $dbh->disconnect;
+
+   my $sidb = $tidb->db_init;
+   $sidb->drop_db();
  }
 
 done_testing();
