@@ -22,7 +22,7 @@ use Test::More;
 BEGIN {
   use FindBin qw($Bin);
   use lib ("$Bin/../lib/");
-  use_ok( 'Spots::DB::Namer' , )
+  use_ok( 'Spots::DB::Init::Namer' , )
 }
 
 ok(1, "Traditional: If we made it this far, we're ok.");
@@ -32,7 +32,7 @@ ok(1, "Traditional: If we made it this far, we're ok.");
 {  my $subname = "list_databases";
    my $test_name = "Testing $subname";
 
-   my $obj = Spots::DB::Namer->new();
+   my $obj = Spots::DB::Init::Namer->new();
    my $dbs = $obj->list_databases();
    # say Dumper( $dbs );
 
