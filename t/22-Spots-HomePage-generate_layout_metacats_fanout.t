@@ -2,6 +2,11 @@
 #   perl 22-Spots-HomePage-generate_layout_metacats_fanout.t
 #          doom@kzsu.stanford.edu     2019/04/15 05:12:01
 
+# STATUS: May 31, 2019  ported over the new 42-*.t style of 
+# independent DATABASE set-up, now this is failing because
+# "fill_in_cat" is ill-conceived: new Category class not rolled
+# out yet. 
+
 use 5.10.0;
 use warnings;
 use strict;
@@ -22,7 +27,10 @@ use Test::More;
 BEGIN {
   use FindBin qw($Bin);
   use lib ("$Bin/../lib/");
-  use_ok( 'Spots::HomePage' , )
+  use_ok( 'Spots::HomePage' , );
+  use lib ("$Bin/lib/");
+  use_ok( 'Spots::Test::DB::Init' , );
+  use_ok( 'Spots::DB::Handle' , );
 }
 
 ok(1, "Traditional: If we made it this far, we're ok.");
@@ -32,29 +40,22 @@ ok(1, "Traditional: If we made it this far, we're ok.");
 {  my $subname = "generate_layout_metacats_fanout";
    my $test_name = "Testing $subname";
 
-   my $output_basename  =  "t22";
-#   my $output_directory = "$Bin/dat/$output_basename";
-   my $output_directory = "$Bin/src/$output_basename";
-   mkpath( $output_directory ) unless -d $output_directory;
+   my $tidb = Spots::Test::DB::Init->new();
+   my $dbname =
+     $tidb->set_up_db_for_test();
 
-   my $expected_html_file = "$output_directory/$output_basename.html";
-   my $expected_css_file  = "$output_directory/$output_basename.css";
+   # my $namer =  $tidb->dbnamer;
+   my $tp = $tidb->test_prefix;
+   my $tNN = 't' . $tp;
+
+   my $out_loc = $tidb->out_loc; # t/out/t22;
+
+   my $expected_html_file = "$out_loc/$tNN.html";
+   my $expected_css_file  = "$out_loc/$tNN.css";
 
    # remove the previously generated files (if any)
    unlink( $expected_html_file ) if -e $expected_html_file;
    unlink( $expected_css_file )  if -e $expected_css_file;
-
-   my $db_database_name = 'spots_test'; # vs just 'spots' 
-
-   # trim category table: restrict to a small set of 3 rows
-   my $expected_cat_count = 3;
-   my $trim_category_skull_file = 
-     qq{$Bin/bin/trim_category_table.sql};
-   ok( -e $trim_category_skull_file, "Testing db setup sql file needed by test script is available");
-   my $setup_db_cmd =<<"___END_SKULL_SET";
-     psql -d $db_database_name -f $trim_category_skull_file
-___END_SKULL_SET
-   system( $setup_db_cmd ) and warn "Problem running $trim_category_skull_file";
 
    # Now we should have:
    # 
@@ -66,11 +67,13 @@ ___END_SKULL_SET
    #      2 | sf      |       2
    #      3 | jobs    |      10
 
+   my $expected_cat_count = 3;
+
    my ($dbh, $sth);
    my $obj = Spots::HomePage->new(
-                               output_basename  => $output_basename,
-                               output_directory => $output_directory,
-                               db_database_name => $db_database_name,
+                               output_basename  => $tNN,
+                               output_directory => $out_loc,
+                               db_database_name => $dbname,
                        );
 
    my $check_cat_skull = qq{ select count(*) as cnt from category };
@@ -79,9 +82,11 @@ ___END_SKULL_SET
    $sth->execute;
    my $cat_check = $sth->fetchall_arrayref({});
    my $cat_count = $cat_check->[0]{ cnt };
-
    is( $cat_count, $expected_cat_count,
        "Testing that category table has restricted number of rows: $expected_cat_count" );
+
+   # TODO BOOKMARK  the following will need revision for new HomePage.pm
+   #                  -- Fri  May 31, 2019  07:40  fandango
 
    # wipe the coordinate columns in the layout table
    $obj->clear_layout;
@@ -122,17 +127,9 @@ ___END_SKULL_SET
    my $check_y = any { $_ > 0 } map{ $_->{ y_location } } @{ $layout };
    ok( $check_y, "$test_name: not all y = 0" );
 
-#    # breakdown: restore data in category table 
-#    my $repop_category_skull_file = 
-#      qq{$Bin/bin/repop_category_table.sql};
-#    ok( -e $trim_category_skull_file, "Testing db setup sql file needed by test script is available");
-#    my $repop_db_cmd =<<"___END_SKULL_SET";
-#      psql -d $db_database_name -f $trim_category_skull_file
-# ___END_SKULL_SET
-#    system( $repop_db_cmd ) and warn "Problem running $trim_category_skull_file";
 
  }
 
-### TODO instead of spots_test, should have a newly created DATABASE with a unique name.
+
 
 done_testing();

@@ -538,6 +538,8 @@ sub cat_width_height {
     $self->fill_in_cat( $cat );   # add data to the $cat    
   }
   my ($width, $height) = ($cat->{width}, $cat->{height});  
+  confess( "cat_width_height: fill_in_cat failed to supply height and width" )
+    unless (defined( $width ) && defined( $height ));
   return ($width, $height);
 }
 
@@ -560,6 +562,7 @@ sub create_rectangle {
   my $height = shift;
 
   confess("create_rectangle: need x1 and y1") unless ( defined( $x1 ) && defined( $y1 ) );
+  confess("create_rectangle: height and width must be non-zero") unless ($height>0 && $width>0) ;
 
   my $x2 = $x1 + $width;
   my $y2 = $y1 + $height;
