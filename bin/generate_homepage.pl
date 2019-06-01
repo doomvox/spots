@@ -58,55 +58,45 @@ GetOptions ("d|debug"    => \$DEBUG,
 
 use FindBin qw($Bin);
 use lib ("$Bin/../lib/");
-use Spots::HomePage; 
+# use Spots::HomePage; 
+use Spots::HomePage::Layout::MetacatsFanout;
+use Spots::HomePage::Generate;
 
-# use lib ("$Bin/../lib/t/lib");
 use lib ("$Bin/../t/lib");
 use Spots::Rectangle::TestData ':all';  # draw_placed
 
+
 # TODO rethink:
 my $base             = shift || "mah_moz_ohm";
-# my $output_directory = shift || cwd();  # First re-think: I hate pwd as default
-my $runny = 'Fenacrone';
+my $runny = 'Shude';
 my $output_directory = shift || "/home/doom/End/Cave/Spots/Output/$runny"; 
 
 mkpath( $output_directory ) unless -d $output_directory;
 
-# Ultimately:
+# TODO ultimately, use:
 # my $output_directory = "$HOME/End/Stage/Rook/spots";
 
-my $obj = Spots::HomePage->new(
+my $obj = Spots::HomePage::Layout::MetacatsFanout->new(
                                output_basename  => $base,
                                output_directory => $output_directory,
                                db_database_name => 'spots',
 #                                db_database_name => 'spots_test',
-#                               layout_style     => 'metacats_doublezig',
-#                               layout_style     => 'metacats_fanout',
                               );
 
+{no warnings 'once'; $DB::single = 1;}
 
-# $obj->initialize_layout_table_with_cats; # hack to cover architectural stupidity
+# my $style;
+# $style     = 'metacats_fanout',
+# say "Doing a $style run in $runny";
+# $obj->generate_layout( $style );
 
-# TODO does this help? (Q: how hard to add rollback-like feature?)
-# # wipe the coordinate columns in the layout table
-# $obj->clear_layout;
-
-my $style;
-#  $style   = "metacats";
-#  $style   = "metacats_doublezig";
-$style     = 'metacats_fanout',
-
-say "Doing a $style run in $runny";
-
-$DB::single = 1;
-# b Spots::HomePage::generate_layout_for_row
-
-$obj->generate_layout( $style );
+$obj->generate_layout_metacats_fanout();
 
 my $placed = $obj->placed;
 draw_placed( $placed, $output_directory, 'placed' );
 
-$obj->html_css_from_layout();
+my $genner = Spots::HomePage::Generate->new();
+$genner->html_css_from_layout();
 
 # TODO check whether expected file has been created/modified
 

@@ -94,6 +94,8 @@ has sth_spots        => (is => 'rw', isa => InstanceOf['DBI::st'], lazy=>1, buil
 has sth_cat          => (is => 'rw', isa => InstanceOf['DBI::st'], lazy=>1, builder => 'builder_prep_sth_sql_cat');
 has sth_x_y          => (is => 'rw', isa => InstanceOf['DBI::st'], lazy=>1, builder => 'builder_prep_sth_x_y_location');
 
+# TODO Is it a logical violation to put x/y values here? 
+#      They're *rectangle* properties, not *inherent* to a particular cat.
 has x_y_location     => (is => 'rw', isa => HashRef,  lazy=>1, builder => 'builder_x_y_location' ); # container href for internal use
 has x_location       => (is => 'rw', isa => Int,      lazy=>1, builder => sub{ ${ $_[0]->x_y_location }{ x_location } } );   
 has y_location       => (is => 'rw', isa => Str,      lazy=>1, builder => sub{ ${ $_[0]->x_y_location }{ y_location } } );   

@@ -117,7 +117,7 @@ has out_loc             => ( is => 'rw', isa => Str, lazy => 1, builder => 'buil
 has dbnamer      => ( is => 'rw', isa => InstanceOf['Spots::DB::Init::Namer'], lazy => 1,
                       builder => sub{ Spots::DB::Init::Namer->new() } );
 
-has dbname       => ( is => 'ro', isa => Str, lazy => 1,
+has dbname       => ( is => 'rw', isa => Str, lazy => 1,
                       builder => sub{ my $self =  shift;
                                       my $dbnamer = $self->dbnamer;
                                       my $uniq_dbname = $dbnamer->uniq_database_name();

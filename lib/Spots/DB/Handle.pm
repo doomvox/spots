@@ -78,11 +78,8 @@ to the names of the object attributes. These attributes are:
 has debug => (is => 'rw', isa => Bool, default => sub{return ($DEBUG||0)});
 
 has dbname => (is => 'rw', isa => Str, default => 'spots' );  
-
 has port => (is => 'rw', isa => Str, default => '5432' );  
-
 has username => (is => 'rw', isa => Str, default => $USER );  
-
 has auth  => (is => 'rw', isa => Str, default => '' );  
 
 has autocommit  => (is => 'rw', isa => Bool, default => 1 );  
@@ -102,19 +99,15 @@ sub builder_db_connection {
   my $self = shift;
 
   # TODO add a secrets file to pull auth info from--
-  #      but understand .pgaccess first
+  #      (but understand .pgaccess first)
   my $dbname = $self->dbname; # default 'spots'
-  # my $port = '5432';
-  my $port = $self->port;
+  my $port = $self->port;  # '5432';
   my $data_source = "dbi:Pg:dbname=$dbname;port=$port;";
-  # my $username = 'doom';
-  my $username = $self->username;
-  # my $auth = '';
-  my $auth = $self->auth;
-  # my %attr = (AutoCommit => 1, RaiseError => 1, PrintError => 0);
-  my %attr = (AutoCommit => $self->autocommit,
-              RaiseError => $self->raise_error,
-              PrintError => $self->print_error );
+  my $username = $self->username;  # 'doom'
+  my $auth = $self->auth;  # ''
+  my %attr = (AutoCommit => $self->autocommit,    # 1 
+              RaiseError => $self->raise_error,   # 1 
+              PrintError => $self->print_error ); # 0
   my $dbh = DBI->connect($data_source, $username, $auth, \%attr);
 
   return $dbh;

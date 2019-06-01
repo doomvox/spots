@@ -22,7 +22,7 @@ my $DEBUG = 1;
    my $obj = Spots::HomePage->new(
                                    output_basename  => $base,
                                    output_directory => $output_directory,
-                                   db_database_name => 'spots_test',
+                                   dbname => 'spots_test',
                                   );
 
    $obj->generate_layout;
@@ -81,6 +81,8 @@ to the names of the object attributes. Some of these attributes are:
 
 =over
 
+#BEGIN GENHTML2
+
 =item output_basename  
 
 The name (sans extension) of the output html and css files                                   
@@ -99,9 +101,13 @@ output_* settings.
 Name (with path) of output css file, to override the output_*
 settings.
 
-=item db_database_name 
+#BEGIN GENHTML2
+
+=item dbname 
 
 The db DATABASE name: either 'spots' (the default) or 'spots_test'
+
+#NONFAN
 
 =item cats_per_row
 
@@ -124,9 +130,11 @@ For others, see L<generate_layout>.  Under development: 'metacats_fanout'
 
 { no warnings 'once'; $DB::single = 1; }
 
+# ALL
 has debug => (is => 'rw', isa => Bool, default => sub{return ($DEBUG||0)});
 
-has db_database_name => (is => 'rw', isa => Str, default => 'spots' );
+# ALL 
+has dbname => (is => 'rw', isa => Str, default => 'spots' );
 
 # GENHTML
 has output_basename  => (is => 'rw', isa => Str,
@@ -135,6 +143,7 @@ has output_basename  => (is => 'rw', isa => Str,
 has output_directory => (is => 'rw', isa => Str,
                          default => "$HOME/End/Cave/Spots/Wall" );
 
+# BEGIN LAYOUT
 has top_bound   => (is => 'ro', isa => Num, default => 0 );
 has left_bound  => (is => 'ro', isa => Num, default => 0 );
 has bot_bound   => (is => 'ro', isa => Num, default => 10000 );  # big numbers for now
@@ -162,6 +171,8 @@ has nudge_y => (is => 'rw', isa => Int,  default => 6   );  # px
 
 has initial_y          => (is => 'rw', isa => Int,  default => 0    ); # rem 
 has initial_x          => (is => 'rw', isa => Int,  default => 5    ); # px
+# END LAYOUT
+
 
 # GENHTML
 has html_file        => (is => 'rw', isa => Str, lazy => 1,
@@ -170,7 +181,8 @@ has html_file        => (is => 'rw', isa => Str, lazy => 1,
 # GENHTML
 has css_file         => (is => 'rw', isa => Str, lazy => 1,
                          builder => 'builder_css_file' );
- 
+
+# BEGIN LAYOUT 
 # horizontal distance in px between category "rectpara"s (metacats_doublezig)
 has x_gutter       => (is => 'rw', isa => Int, default=>4 );
 has y_gutter       => (is => 'rw', isa => Int, default=>1 ); # 1 rem
@@ -181,9 +193,12 @@ has color_scheme => (is => 'rw', isa => Str, default => 'dev' );
 
 has layout_style => (is => 'rw', isa => Str, default => 'metacats_doublezig' ); 
 
+# METACATSFANOUT
 # array of rectangles added to the current layout (used by 'metacats_fanout')
 has placed       => (is => 'rw', isa => ArrayRef, default => sub{ [] } );
+# END LAYOUT
 
+# ALL
 has dbh              => (is => 'rw',   
                          isa => InstanceOf['DBI::db'],
                          lazy => 1, builder => 'builder_db_connection' );
@@ -246,12 +261,13 @@ sub builder_css_fh {
 
 =cut
 
+# ALL
 sub builder_db_connection {
   my $self = shift;
 
   # TODO break-out more of these params as object fields
   # TODO add a secrets file to pull auth info from
-  my $dbname = $self->db_database_name; # default 'spots'
+  my $dbname = $self->dbname; # default 'spots'
   # my $port = '5434'; # non-standard port for old build on tango
   my $port = '5432';
   my $data_source = "dbi:Pg:dbname=$dbname;port=$port;";
@@ -295,11 +311,14 @@ sub builder_prep_sth_sql_cat_size {
 
 =cut
 
+# LAYOUT
 sub clear_placed {
   my $self = shift;
   @{ $self->{ placed } } = ();
 }
 
+
+# BEGIN LAYOUT
 
 =back
 
@@ -309,8 +328,6 @@ Determine placement of cats, writing x, y, width, and height
 the the layout table. 
 
 =over 
-
-
 
 =item cat_size_to_layout
 
@@ -507,6 +524,8 @@ sub put_cat_in_place {
   return $ret;
 }
 
+# END LAYOUT
+
 =item count_cat_spots
 
 Given a $cat href, returns the count of spots in the category, 
@@ -554,6 +573,8 @@ sub cat_width_height {
   return ($width, $height);
 }
 
+# BEGIN LAYOUT
+
 =item create_rectangle
 
 Returns a rectangle object at the given point, with given width and height.
@@ -581,6 +602,7 @@ sub create_rectangle {
   return $rect;
 }
 
+# END LAYOUT
 
 
 =item create_rectangle_from_cat
@@ -609,6 +631,8 @@ sub create_rectangle_from_cat {
   my $rect = Spots::Rectangle->new({ coords => [ $x1, $y1, $x2, $y2 ] });  
   return $rect;
 }
+
+# BEGIN LAYOUT
 
 =item find_place_for_cat
 
@@ -1436,6 +1460,7 @@ sub generate_layout_metacats {
   }
 }
 
+# END LAYOUT
 
 
 =item cat_dimensions
@@ -1471,6 +1496,7 @@ sub cat_dimensions {
 
 
 
+# BEGIN LAYOUT
 
 =item generate_layout_by_size
 
@@ -1532,6 +1558,8 @@ sub generate_layout_by_size {
     }
   }
 }
+
+# END LAYOUT
 
 
 =back 
@@ -2109,7 +2137,7 @@ Safety feature: this will only work if dname contains string "test".
 sub clear_layout {
   my $self = shift;
 
-  my $dbname = $self->db_database_name;
+  my $dbname = $self->dbname;
   unless( $dbname =~ /test/ ) {
     croak "clear_layout will only work on a DATABASE named with 'test'";
   }

@@ -20,7 +20,9 @@ use List::MoreUtils qw( zip uniq );
 use Test::More;
 
 BEGIN {
-  use_ok( 'Spots::HomePage::Generate' )
+  use FindBin qw($Bin);
+  use lib ("$Bin/../lib/");
+  use_ok( 'Spots::HomePage::Generate' , )
 }
 
 ok(1, "Traditional: If we made it this far, we're ok.");
@@ -32,7 +34,9 @@ ok(1, "Traditional: If we made it this far, we're ok.");
 {  my $subname = "";
    my $test_name = "Testing $subname";
 
-    
+   # my $obj = Spots::HomePage::Generate->new();
+   # $obj->();
+
  }
 
 done_testing();

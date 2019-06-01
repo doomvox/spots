@@ -45,7 +45,7 @@ ok(1, "Traditional: If we made it this far, we're ok.");
 
    my $sql = "select count(*) AS c from  category";
    my $expected = { c => 3 };
-   my $href = $dbh->selectrow_hashref($sql);
+   my $href = $dbh->selectrow_hashref( $sql );
    # say Dumper( $href );
    is_deeply( $href, $expected, "$test_name: count rows in category table" );
 
@@ -53,7 +53,7 @@ ok(1, "Traditional: If we made it this far, we're ok.");
    # $expected = [ { name => 'oakland' }, {name => 'sf'}, {name => 'jobs'} ];
    $expected = [ [ 'oakland' ], [ 'sf' ], [ 'jobs' ] ];
 
-   my $aref = $dbh->selectall_arrayref($sql);
+   my $aref = $dbh->selectall_arrayref( $sql );
    # say Dumper( $aref );
    is_deeply( $aref, $expected, "$test_name: count rows in category table" );
 

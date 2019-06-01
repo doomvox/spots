@@ -84,22 +84,26 @@ has output_basename  => (is => 'rw', isa => Str,
 has output_directory => (is => 'rw', isa => Str,
                          default => "$HOME/End/Cave/Spots/Wall" );
 
-has cat_herder       =>  (is => 'rw', isa => InstanceOf['Spots::Herd'], builder => 'builder_cat_herder' );
+# has color_scheme => (is => 'rw', isa => Str, default => 'live' ); # or 'dev'
+has color_scheme => (is => 'rw', isa => Str, default => 'dev' ); 
 
-has all_cats => (is => 'rw', isa => ArrayRef[InstanceOf['Spots::Category']],
-                  lazy=>1, builder => 'builder_all_cats' );
+has html_file => (is => 'rw', isa => Str, lazy => 1, builder => 'builder_html_file' );
+has css_file  => (is => 'rw', isa => Str, lazy => 1, builder => 'builder_css_file' );
 
-has dbh         => (is => 'rw',   
-                    isa => InstanceOf['DBI::db'],
-                    lazy => 1, builder => 'builder_db_connection' );
+has html_fh => (is => 'rw', isa => InstanceOf['GLOB'], lazy => 1, builder => 'builder_html_fh' );
+has css_fh  => (is => 'rw', isa => InstanceOf['GLOB'], lazy => 1, builder => 'builder_css_fh' );
 
-# GENHTML -- reads from layout
-has sth_cat_size      => (is => 'rw', 
-                          isa => sub {
-                            die "$_[0] not a db statement handle"
-                              unless ref $_[0] eq 'DBI::st'
-                            },
-                          lazy => 1,
+has cat_herder => (is => 'rw', isa => InstanceOf['Spots::Herd'], lazy => 1,
+                   builder => 'builder_cat_herder' );
+
+has all_cats   => (is => 'rw', isa => ArrayRef[InstanceOf['Spots::Category']],
+                   lazy=>1, builder => 'builder_all_cats' );
+
+has dbh         => (is => 'rw', isa => InstanceOf['DBI::db'], lazy => 1,
+                    builder => 'builder_db_connection' );
+
+# GENHTML  reads from layout table
+has sth_cat_size      => (is => 'rw', isa => InstanceOf['DBI::st'], lazy => 1,
                           builder => 'builder_prep_sth_sql_cat_size');
 
 
@@ -186,11 +190,11 @@ sub builder_cat_herder {
   return $herd;
 }
 
-=item all_cats
+=item builder_all_cats
 
 =cut
 
-sub all_cats {
+sub builder_all_cats {
   my $self = shift;
   my $cat_herder = $self->cat_herder;
   my $all_cats = $cat_herder->cats;
@@ -241,9 +245,6 @@ sub html_css_from_layout {
 
   my ($rp_count, $max_h)  = (0, 0);
   foreach my $cat ( @{ $all_cats } ) {
-
-#     my $cat_id   = $cat->{ id };
-#     my $cat_name = $cat->{ name };
     my $cat_id    = $cat->id;
     my $cat_name  = $cat->name;
 
