@@ -20,20 +20,14 @@ my $DEBUG = 1;
 
    use Spots::DB::Handle;
    my $obj = Spots::DB::Handle->new(
-      { 
-        dbname => 'spots_test'  
-       });
-
+      { dbname => 'spots_test' });
    my $dbh = $obj->dbh;
-
-                                   
 
 =head1 DESCRIPTION
 
 Spots::DB::Handle is a module that is largely a wrapper around DBI connect
-that supplies project-specific defaults which can be over-ridden, 
-e.g. for test purposes.
-
+that supplies project-specific defaults which can be over-ridden, e.g. for
+test purposes.
 
 =head1 METHODS
 
@@ -64,30 +58,62 @@ to the names of the object attributes. These attributes are:
 
 =over
 
-=item <TODO fill-in attributes here... most likely, sort in order of utility>
+=item debug 
 
-=back
+Turn on debug mode (currently unsused). And while under development, it's always on.
+
+=item dbname 
+
+The postgresql DATABASE name we're connecting to.   Defaults to "spots".
+
+=item port
+
+Defaults to 5432 (pg standard).
+
+=item username
+
+Defaults to $USER.
+
+=item auth
+
+Like a password.  Defaults to blank.
+
+=item autocommit
+
+Defaults to 1.
+
+=item raise_error
+
+Defaults to 1.
+
+=item print_error
+
+Defaults to 0.
+
+=item dbh
+
+Main access method, use to get the shared dbh handle to be used by the entire project.
+
+=back 
 
 =cut
 
-# Example attribute:
-# has is_loop => ( is => 'rw', isa => Int, default => 0 );
 
 { no warnings 'once'; $DB::single = 1; }
 
-has debug => (is => 'rw', isa => Bool, default => sub{return ($DEBUG||0)});
+has debug       => (is => 'rw', isa => Bool, default => sub{return ($DEBUG||0)});
 
-has dbname => (is => 'rw', isa => Str, default => 'spots' );  
-has port => (is => 'rw', isa => Str, default => '5432' );  
-has username => (is => 'rw', isa => Str, default => $USER );  
-has auth  => (is => 'rw', isa => Str, default => '' );  
+has dbname      => (is => 'rw', isa => Str, default => 'spots' );  
+has port        => (is => 'rw', isa => Str, default => '5432' );  
+has username    => (is => 'rw', isa => Str, default => $USER );  
+has auth        => (is => 'rw', isa => Str, default => '' );  
 
 has autocommit  => (is => 'rw', isa => Bool, default => 1 );  
 has raise_error => (is => 'rw', isa => Bool, default => 1 );  
 has print_error => (is => 'rw', isa => Bool, default => 0 );  
 
-has dbh => (is => 'rw', isa => InstanceOf['DBI::db'], lazy => 1,
-            builder => 'builder_db_connection' );
+has dbh         => (is => 'rw', isa => InstanceOf['DBI::db'], lazy => 1,
+                    builder => 'builder_db_connection' );
 
 =item builder_db_connection
 
@@ -98,18 +124,19 @@ Create a conncetion to the postgres database, returns a database filehandle.
 sub builder_db_connection {
   my $self = shift;
 
-  # TODO add a secrets file to pull auth info from--
-  #      (but understand .pgaccess first)
+  # TODO add a secrets file to pull auth info from?
+  #      Can you just use .pgaccess for this?
   my $dbname = $self->dbname; # default 'spots'
   my $port = $self->port;  # '5432';
   my $data_source = "dbi:Pg:dbname=$dbname;port=$port;";
   my $username = $self->username;  # 'doom'
   my $auth = $self->auth;  # ''
-  my %attr = (AutoCommit => $self->autocommit,    # 1 
-              RaiseError => $self->raise_error,   # 1 
-              PrintError => $self->print_error ); # 0
-  my $dbh = DBI->connect($data_source, $username, $auth, \%attr);
-
+  my %attr = ( AutoCommit => $self->autocommit,    # 1 
+               RaiseError => $self->raise_error,   # 1 
+               PrintError => $self->print_error ); # 0
+  # my $dbh = DBI->connect($data_source, $username, $auth, \%attr);
+  state $dbh ||= DBI->connect($data_source, $username, $auth, \%attr);
+  # state $count; say "builder_db_connection called " . $count++ . " times.";
   return $dbh;
 }
 

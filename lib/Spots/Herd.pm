@@ -49,6 +49,7 @@ use List::MoreUtils qw( zip uniq );
 use String::ShellQuote qw( shell_quote_best_effort );
 use DBI;
 use Spots::Category;
+use Spots::DB::Handle;
 
 =item new
 
@@ -71,7 +72,7 @@ to the names of the object attributes. These attributes are:
 
 { no warnings 'once'; $DB::single = 1; }
 
-has dbname => (is => 'rw', isa => Str, default => 'spots' );
+has dbname    => (is => 'rw', isa => Str, default => 'spots' );
 
 has dbh       => (is => 'rw', isa => InstanceOf['DBI::db'], lazy=>1,
                          builder => 'builder_db_connection' );
@@ -114,6 +115,23 @@ sub builder_all_cats {
   return \@cats;
 }
 
+# =item builder_db_connection
+
+# =cut
+
+# sub builder_db_connection {
+#   my $self = shift;
+#   # TODO break-out more of these params as object fields
+#   # TODO add a secrets file to pull auth info from
+#   my $dbname = $self->dbname; # default 'spots'
+#   my $port = '5432';
+#   my $data_source = "dbi:Pg:dbname=$dbname;port=$port;";
+#   my $username = 'doom';
+#   my $auth = '';
+#   my %attr = (AutoCommit => 1, RaiseError => 1, PrintError => 0);
+#   my $dbh = DBI->connect($data_source, $username, $auth, \%attr);
+#   return $dbh;
+# }
 
 
 =item builder_db_connection
@@ -122,17 +140,12 @@ sub builder_all_cats {
 
 sub builder_db_connection {
   my $self = shift;
-  # TODO break-out more of these params as object fields
-  # TODO add a secrets file to pull auth info from
-  my $dbname = $self->dbname; # default 'spots'
-  my $port = '5432';
-  my $data_source = "dbi:Pg:dbname=$dbname;port=$port;";
-  my $username = 'doom';
-  my $auth = '';
-  my %attr = (AutoCommit => 1, RaiseError => 1, PrintError => 0);
-  my $dbh = DBI->connect($data_source, $username, $auth, \%attr);
+  my $dbname = $self->dbname;   # default 'spots'
+  my $obj = Spots::DB::Handle->new({ dbname => $dbname });
+  my $dbh = $obj->dbh;
   return $dbh;
 }
+
 
 =item generate_sql_for_all_cat_ids
 

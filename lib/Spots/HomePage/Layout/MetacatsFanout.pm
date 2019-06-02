@@ -62,7 +62,7 @@ use Spots::DB::Handle;
 use Spots::Rectangle;
 use Spots::Category;
 use Spots::Herd;
-
+use Spots::DB::Handle;
 
 =item new
 
@@ -121,25 +121,38 @@ has all_cats   => (is => 'rw', isa => ArrayRef[InstanceOf['Spots::Category']],
 
 
 
+# =item builder_db_connection
+
+# =cut
+
+# sub builder_db_connection {
+#   my $self = shift;
+
+#   # TODO  use Spots::DB::Handle
+#   my $dbname = $self->dbname; # default 'spots'
+#   # my $port = '5434'; # non-standard port for old build on tango
+#   my $port = '5432';
+#   my $data_source = "dbi:Pg:dbname=$dbname;port=$port;";
+#   my $username = 'doom';
+#   my $auth = '';
+#   my %attr = (AutoCommit => 1, RaiseError => 1, PrintError => 0);
+#   my $dbh = DBI->connect($data_source, $username, $auth, \%attr);
+
+#   return $dbh;
+# }
+
 =item builder_db_connection
 
 =cut
 
 sub builder_db_connection {
   my $self = shift;
-
-  # TODO  use Spots::DB::Handle
-  my $dbname = $self->dbname; # default 'spots'
-  # my $port = '5434'; # non-standard port for old build on tango
-  my $port = '5432';
-  my $data_source = "dbi:Pg:dbname=$dbname;port=$port;";
-  my $username = 'doom';
-  my $auth = '';
-  my %attr = (AutoCommit => 1, RaiseError => 1, PrintError => 0);
-  my $dbh = DBI->connect($data_source, $username, $auth, \%attr);
-
+  my $dbname = $self->dbname;   # default 'spots'
+  my $obj = Spots::DB::Handle->new({ dbname => $dbname });
+  my $dbh = $obj->dbh;
   return $dbh;
 }
+
 
 
 =item builder_cat_herder

@@ -52,6 +52,7 @@ use List::Util      qw( first max maxstr min minstr reduce shuffle sum any );
 use List::MoreUtils qw( zip uniq );
 use String::ShellQuote qw( shell_quote_best_effort );
 use DBI;
+use Spots::DB::Handle;
 
 =item new
 
@@ -195,23 +196,37 @@ sub builder_height {
 }
 
 
+# =item builder_db_connection
+
+# =cut
+
+# sub builder_db_connection {
+#   my $self = shift;
+#   # TODO break-out more of these params as object fields
+#   # TODO add a secrets file to pull auth info from
+#   my $dbname = $self->dbname; # default 'spots'
+#   my $port = '5432';
+#   my $data_source = "dbi:Pg:dbname=$dbname;port=$port;";
+#   my $username = 'doom';
+#   my $auth = '';
+#   my %attr = (AutoCommit => 1, RaiseError => 1, PrintError => 0);
+#   my $dbh = DBI->connect($data_source, $username, $auth, \%attr);
+#   return $dbh;
+# }
+
+
 =item builder_db_connection
 
 =cut
 
 sub builder_db_connection {
   my $self = shift;
-  # TODO break-out more of these params as object fields
-  # TODO add a secrets file to pull auth info from
-  my $dbname = $self->dbname; # default 'spots'
-  my $port = '5432';
-  my $data_source = "dbi:Pg:dbname=$dbname;port=$port;";
-  my $username = 'doom';
-  my $auth = '';
-  my %attr = (AutoCommit => 1, RaiseError => 1, PrintError => 0);
-  my $dbh = DBI->connect($data_source, $username, $auth, \%attr);
+  my $dbname = $self->dbname;   # default 'spots'
+  my $obj = Spots::DB::Handle->new({ dbname => $dbname });
+  my $dbh = $obj->dbh;
   return $dbh;
 }
+
 
 =item builder_prep_sth_sql_spots
 

@@ -68,7 +68,7 @@ use Spots::Rectangle::TestData ':all';  # draw_placed
 
 # TODO rethink:
 my $base             = shift || "mah_moz_ohm";
-my $runny = 'Shude';
+my $runny = 'Minotaur';
 my $output_directory = shift || "/home/doom/End/Cave/Spots/Output/$runny"; 
 
 mkpath( $output_directory ) unless -d $output_directory;
@@ -95,7 +95,11 @@ $obj->generate_layout_metacats_fanout();
 my $placed = $obj->placed;
 draw_placed( $placed, $output_directory, 'placed' );
 
-my $genner = Spots::HomePage::Generate->new();
+my $genner =
+  Spots::HomePage::Generate->new(
+                               output_basename  => $base,
+                               output_directory => $output_directory,
+                                           );
 $genner->html_css_from_layout();
 
 # TODO check whether expected file has been created/modified
