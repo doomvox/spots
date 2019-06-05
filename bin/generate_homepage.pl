@@ -87,8 +87,8 @@ mkpath( $output_directory ) unless -d $output_directory;
 # my $output_directory = "$HOME/End/Stage/Rook/spots";
 
 my $obj = Spots::HomePage::Layout::MetacatsFanout->new(
-                               output_basename  => $base,
-                               output_directory => $output_directory,
+#                               output_basename  => $base,
+#                               output_directory => $output_directory,
                                db_database_name => 'spots',
                                db_database_name => 'spots_test',
                                over_cats => \@over_cats,

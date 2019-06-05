@@ -18,51 +18,70 @@ use List::MoreUtils qw( any );
 
 use Test::More;
 
+
+
 BEGIN {
   use FindBin qw($Bin);
   use lib ("$Bin/../lib/");
-  use_ok( 'Spots::HomePage' , )
+#  use_ok( 'Spots::HomePage' , );
+  use_ok( 'Spots::HomePage::Layout::MetacatsFanout' );
+  use_ok( 'Spots::HomePage::Generate' );
 }
 
 ok(1, "Traditional: If we made it this far, we're ok.");
 
-# $DB::single = 1;
+{ no warnings 'once';  $DB::single = 1; }
 
-{  my $subname = "accessors";
-   my $test_name = "Testing $subname";
+{  my $layout_class = 'Spots::HomePage::Layout::MetacatsFanout';
+   my $subname = "accessors";
+   my $test_name = "Testing $layout_class $subname";
 
-   my $obj = Spots::HomePage->new();
+   my $obj = $layout_class->new();
 
-   # has db_database_name => (is => 'rw', isa => Str, default => 'spots' );
+   # has dbname => (is => 'rw', isa => Str, default => 'spots' );
 
-   my $dbname = $obj->db_database_name;
-   is( $dbname, 'spots', "$test_name: db_database_name" );
+   my $dbname = $obj->dbname;
+   is( $dbname, 'spots', "$test_name: dbname" );
 
-   $obj->db_database_name('spots_test');
-   $dbname = $obj->db_database_name;
-   is( $dbname, 'spots_test', "$test_name: db_database_name changed" );
+   $obj->dbname('spots_test');
+   $dbname = $obj->dbname;
+   is( $dbname, 'spots_test', "$test_name: dbname changed" );
+ }
 
-   my $outdir = $obj->output_directory;
+{
+   my $class = 'Spots::HomePage::Generate';
+   my $subname = "accessors";
+   my $test_name = "Testing $class $subname";
+   my $genner = Spots::HomePage::Generate->new();
+
+   my $outdir = $genner->output_directory;
    is( $outdir,  '/home/doom/End/Cave/Spots/Wall', "$test_name: output_directory" );
 
-   $obj->output_directory('/home/doom/End/Cave/Spots/tmp');
-   $outdir = $obj->output_directory;
+   $genner->output_directory('/home/doom/End/Cave/Spots/tmp');
+   $outdir = $genner->output_directory;
    is( $outdir,  '/home/doom/End/Cave/Spots/tmp', "$test_name: output_directory changed" );
 
  }
 
-{  my $subname = "argument to new";
+{  my $layout_class = 'Spots::HomePage::Layout::MetacatsFanout';
+   my $gen_class = 'Spots::HomePage::Generate';
+   my $subname = "argument to new";
    my $test_name = "Testing $subname";
 
-   my $obj = Spots::HomePage->new(
-                                  db_database_name => 'spots_test',
-                                  output_directory => '/home/doom/tmp',
+   my $lay = $layout_class->new(
+                                  dbname => 'spots_test',
                                  );
 
-   my $dbname = $obj->db_database_name;
-   is( $dbname, 'spots_test', "$test_name: db_database_name" );
+   my $dbname = $lay->dbname;
+   is( $dbname, 'spots_test', "$test_name: dbname" );
 
-   my $outdir = $obj->output_directory;
+
+   my $genner = Spots::HomePage::Generate->new(
+                                  output_directory => '/home/doom/tmp',
+                                              );
+
+
+   my $outdir = $genner->output_directory;
    is( $outdir,  '/home/doom/tmp', "$test_name: output_directory" );
  }
 
@@ -76,8 +95,8 @@ ok(1, "Traditional: If we made it this far, we're ok.");
 #    my $base = "02-$subname";
 
 #    $DB::single = 1;
-#    my $obj = Spots::HomePage->new(
-#                                   db_database_name => 'spots_test',
+#    my $obj = $layout_class->new(
+#                                   dbname => 'spots_test',
 #                                   output_basename  => $base,
 #                                   output_directory => $output_directory,
 #                                  );
