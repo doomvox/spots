@@ -1,5 +1,5 @@
 # Perl test file, can be run like so:
-#   perl 16-Spots-Rectangle-coords.t
+#   perl 13-Spots-Rectangle-TestData.t
 #          doom@kzsu.stanford.edu     2019/04/07 16:32:05
 
 use 5.10.0;
@@ -29,36 +29,12 @@ ok(1, "Traditional: If we made it this far, we're ok.");
 
 { no warnings 'once'; $DB::single = 1; }
 
-{  my $subname = "coords";
-   my $class_exp = "Spots::Rectangle";
-   my $test_name = "Testing $subname";
-
-   my $x1_exp = 3;
-   my $y1_exp = 13;
-   my $x2_exp = 6;
-   my $y2_exp = 16;
-
-   my $coords_exp = [ $x1_exp, $y1_exp, $x2_exp, $y2_exp ];
-   my $obj = $class_exp->new( coords => $coords_exp );
-
-   my $x1 = $obj->x1;
-   is( $x1, $x1_exp, "$test_name: x1 accessor" );
-   
-   my $y1 = $obj->y1;
-   is( $y1, $y1_exp, "$test_name: y1 accessor" );
-
-   my $coords = $obj->coords();
-   is_deeply( $coords, $coords_exp, "$test_name: coords accessor" );
-
- }
-
 { 
-   my $test_name = "Testing placed data structures";
-   is_deeply( $placed_grendel1, $placed_grendel1_raw, "$test_name: refactored form matches raw form" );
- }
+  my $test_name = "Testing placed data structures";
+  my $placed_grendel1 = generate_placed_grendel1();
+  my $placed_grendel1_raw = generate_placed_raw();
 
-
-
-
+  is_deeply( $placed_grendel1, $placed_grendel1_raw, "$test_name: refactored form matches raw form" );
+}
 
 done_testing();

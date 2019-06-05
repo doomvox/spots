@@ -394,6 +394,7 @@ sub edge_distance {
 
 
 
+
 =item is_overlapping
 
 The non-overlap condition for two grid-aligned rectangles
@@ -406,15 +407,63 @@ The non-overlap condition for two grid-aligned rectangles
 =cut
 
 sub is_overlapping {
-  my $self = shift;
-  my $b    = shift;
-  my $a    = $self; # alias better?
+  my $self = shift;  # rectangle A
+  my $b    = shift;  # rectangle B
+
+  my $ax1 = $self->x1;
+  my $ay1 = $self->y1;
+  my $ax2 = $self->x2;
+  my $ay2 = $self->y2;
+
+  my $bx1 = $b->x1;
+  my $by1 = $b->y1;
+  my $bx2 = $b->x2;
+  my $by2 = $b->y2;
+
+#   my $non_overlap = 
+#      ($ax1 < $bx1  && $ax2 < $bx2)
+#   || ($ax1 > $bx1  && $ax2 > $bx2)
+#   || ($ay1 < $by1  && $ay2 < $by2)
+#   || ($ay1 > $by1  && $ay2 > $by2);
 
   my $non_overlap = 
-     ($a->x1 < $b->x1  && $a->x2 < $b->x2)
-  || ($a->x1 > $b->x1  && $a->x2 > $b->x2)
-  || ($a->y1 < $b->y1  && $a->y2 < $b->y2)
-  || ($a->y1 > $b->y1  && $a->y2 > $b->y2);
+    ($by1 > $ay2) || ($bx1 > $ax2) || ($bx2 < $ax1) || ($by2 < $ay1);
+
+  my $overlap = not( $non_overlap );
+  return $overlap;
+}
+
+
+=item is_overlapping_LAME
+
+The non-overlap condition for two grid-aligned rectangles
+
+       (Ax1 < Bx1  && Ax2 < Bx2)  
+   ||  (Ax1 > Bx1  && Ax2 > Bx2)                         
+   ||  (Ay1 < By1  && Ay2 < By2)  
+   ||  (Ay1 > By1  && Ay2 > By2)                         
+
+=cut
+
+sub is_overlapping_LAME {
+  my $self = shift;  # rectangle A
+  my $b    = shift;  # rectangle B
+
+  my $ax1 = $self->x1;
+  my $ay1 = $self->y1;
+  my $ax2 = $self->x2;
+  my $ay2 = $self->y2;
+
+  my $bx1 = $b->x1;
+  my $by1 = $b->y1;
+  my $bx2 = $b->x2;
+  my $by2 = $b->y2;
+
+  my $non_overlap = 
+     ($ax1 < $bx1  && $ax2 < $bx2)
+  || ($ax1 > $bx1  && $ax2 > $bx2)
+  || ($ay1 < $by1  && $ay2 < $by2)
+  || ($ay1 > $by1  && $ay2 > $by2);
 
   my $overlap = not( $non_overlap );
   return $overlap;

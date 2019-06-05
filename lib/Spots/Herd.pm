@@ -84,6 +84,12 @@ has cats      => (is => 'rw',
                   isa => ArrayRef[InstanceOf['Spots::Category']],
                   lazy=>1, builder => 'builder_all_cats' );
 
+# optional list of cat ids to override the "all_cats" lookup-- 
+# so you can use restricted sets for debugging purposes. 
+has over_cats  => (is => 'rw', isa => ArrayRef[Int], lazy=>1,
+                   default => sub{ [] } );
+
+
 
 =item builder_all_cat_ids
 
@@ -91,13 +97,20 @@ has cats      => (is => 'rw',
 
 sub builder_all_cat_ids {
   my $self = shift;
+
+  my @over_cats = @{ $self->over_cats };
   my $dbh  = $self->dbh;
-  my $sql  = $self->generate_sql_for_all_cat_ids;
+
+  my $sql;
+  if( @over_cats ) {
+    $sql = $self->generate_sql_for_some_cat_ids( \@over_cats );
+  } else { # just get all cats for real
+    $sql = $self->generate_sql_for_all_cat_ids;
+  }
 
   my $sth = $dbh->prepare( $sql );
   $sth->execute();  
   my $cats = $sth->fetchall_arrayref;
-
   my @flat_cats = map{ $_->[0] } @{ $cats };
   return \@flat_cats;
 }
@@ -149,11 +162,16 @@ sub builder_db_connection {
 
 =item generate_sql_for_all_cat_ids
 
+Query to return cat ids with associated spot counts.
+
+This filters out cats without spots.
+
+(( TODO Q: is this the right place to do this? ))
+
 =cut
 
 sub generate_sql_for_all_cat_ids {
   my $self = shift;
-#      SELECT category.id AS id FROM category
   my $sql =<<"__END_ALL_CAT_SKULL";
       SELECT category.id AS id, count(*)
       FROM category JOIN spots ON (category.id = spots.category) 
@@ -163,8 +181,32 @@ __END_ALL_CAT_SKULL
   return $sql;
 }
 
-# Q: is this the right place to get a count of spots
-# and skip cats if they have no associated entries?
+
+=item generate_sql_for_some_cat_ids
+
+Variant of L<generate_sql_for_all_cat_ids> that uses the
+over_cats list to restrict the set of cats we work on.
+
+=cut
+
+sub generate_sql_for_some_cat_ids {
+  my $self      = shift;
+  my $over_cats = shift || $self->over_cats;
+  my $over_cat_str = join ',', @{ $over_cats };
+  my $sql =<<"__END_SOME_CAT_SKULL";
+      SELECT category.id AS id, count(*)
+      FROM category JOIN spots ON (category.id = spots.category) 
+      WHERE category.id IN ( $over_cat_str )
+      GROUP BY category.id
+      HAVING count(*) > 0
+__END_SOME_CAT_SKULL
+  return $sql;
+}
+
+
+
+
+
 
 
 # This might be used to create an array of Cats

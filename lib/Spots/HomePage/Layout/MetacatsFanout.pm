@@ -47,7 +47,7 @@ probably be refactored to make it easier to swap in different styles.
 use 5.10.0;
 no warnings 'experimental';
 use Carp;
-use Data::Dumper;
+use Data::Dumper::Names;
 use File::Path      qw( mkpath );
 use File::Basename  qw( fileparse basename dirname );
 use File::Copy      qw( copy move );
@@ -62,7 +62,6 @@ use Spots::DB::Handle;
 use Spots::Rectangle;
 use Spots::Category;
 use Spots::Herd;
-use Spots::DB::Handle;
 
 =item new
 
@@ -93,9 +92,10 @@ has left_bound  => (is => 'ro', isa => Num, default => 0 );
 has bot_bound   => (is => 'ro', isa => Num, default => 10000 );  # big numbers for now
 has right_bound => (is => 'ro', isa => Num, default => 10000 );
 
-# default values empirically determined
-has vertical_scale     => (is => 'rw', isa => Num,  default => 1.3 ); # rem per line
-has horizontal_scale   => (is => 'rw', isa => Num,  default => 12  ); # px per char
+# See Category.pm x_scale, y_scale  (a good use for a project-wide config file.) 
+# # default values empirically determined
+# has vertical_scale     => (is => 'rw', isa => Num,  default => 1.3 ); # rem per line
+# has horizontal_scale   => (is => 'rw', isa => Num,  default => 12  ); # px per char
 
 has vertical_padding   => (is => 'rw', isa => Num,  default => 2   );  # rem
 has horizontal_padding => (is => 'rw', isa => Int,  default => 10  );  # px 
@@ -118,28 +118,11 @@ has cat_herder => (is => 'rw', isa => InstanceOf['Spots::Herd'], lazy=>1,
 has all_cats   => (is => 'rw', isa => ArrayRef[InstanceOf['Spots::Category']],
                    lazy=>1, builder => 'builder_all_cats' );
 
+# optional list of cat ids to override the "all_cats" lookup-- 
+# so you can use restricted sets for debugging purposes. 
+has over_cats  => (is => 'rw', isa => ArrayRef[Int], lazy=>1,
+                   default => sub{ [] } );
 
-
-
-# =item builder_db_connection
-
-# =cut
-
-# sub builder_db_connection {
-#   my $self = shift;
-
-#   # TODO  use Spots::DB::Handle
-#   my $dbname = $self->dbname; # default 'spots'
-#   # my $port = '5434'; # non-standard port for old build on tango
-#   my $port = '5432';
-#   my $data_source = "dbi:Pg:dbname=$dbname;port=$port;";
-#   my $username = 'doom';
-#   my $auth = '';
-#   my %attr = (AutoCommit => 1, RaiseError => 1, PrintError => 0);
-#   my $dbh = DBI->connect($data_source, $username, $auth, \%attr);
-
-#   return $dbh;
-# }
 
 =item builder_db_connection
 
@@ -162,7 +145,8 @@ sub builder_db_connection {
 sub builder_cat_herder {
   my $self = shift;
   my $dbname = $self->dbname;
-  my $herd = Spots::Herd->new( dbname => $dbname ); 
+  my $over_cats = $self->over_cats;
+  my $herd = Spots::Herd->new( dbname => $dbname, over_cats => $over_cats ); 
   return $herd;
 }
 
@@ -200,18 +184,23 @@ the the layout table.
 Blank out the coordinate columns in the layout table:
   x_location, y_location, width, height
 
-Safety feature: this will only work if dname contains string "test".
-TODO that suggests it should be in a package of Test utitlites.
+
 
 =cut
+
+# Deleting this:
+# Safety feature: this will only work if dname contains string "test".
+# TODO that suggests it should be in a package of Test utitlites.
+
+
 
 sub clear_layout {
   my $self = shift;
 
   my $dbname = $self->dbname;
-  unless( $dbname =~ /test/ ) {
-    croak "clear_layout will only work on a DATABASE named with 'test'";
-  }
+#   unless( $dbname =~ /test/ ) {
+#     croak "clear_layout will only work on a DATABASE named with 'test'";
+#   }
 
   my $update_sql = 
     qq{UPDATE layout } .
@@ -224,58 +213,6 @@ sub clear_layout {
   return $rows_affected;
 }
 
-
-
-
-# =item cat_size_to_layout
-
-# Determine the height (in rem) and width (in px) of each cat, and
-# write it to the layout table.
-
-# Defaults to all cats, can be over-ridden by passing an aref of 
-# Category objects.
-
-# =cut
-
-# sub cat_size_to_layout {
-#   my $self = shift;
-# #  my $cats = shift || $self->list_all_cats(); 
-#   my $cats = shift || $self->all_cats();
-
-#   my $cat_count = scalar( @{ $cats } );
-
-#   my $popcat = 0; # count of populated cats, i.e. ones with spots
-#  CAT:
-#   foreach my $cat ( @{ $cats } ) { 
-#     # my $cat_id   = $cat->{ id };
-#     # my $cat_name = $cat->{ name };
-#     my $cat_id   = $cat->id;
-#     my $cat_name  = $cat->name;
-
-#     my $cat_spots  = $cat->spots;
-#     my $spot_count = $cat->spot_count;
-#     my $x          = $cat->x_location;
-#     my $y          = $cat->y_location;
-#     my $w          = $cat->width;
-#     my $h          = $cat->height;
-
-#     # my ($cat_spots, $height_in_lines) = $self->lookup_cat( $cat_id );  
-# #    my $height_in_lines = $spot_count;
-#     next CAT if not $cat_spots; # skip empty category
-#     $popcat++;
-# #     my $width_chars = $self->cat_width( $cat_spots );
-# #     my ($height_rem, $width_px) =
-# #       $self->cat_dimensions( $height_in_lines, $width_chars );
-
-# #    $self->update_height_width_of_cat( $cat_id, $width_px, $height_rem );
-#     $self->update_height_width_of_cat( $cat_id, $w, $h );
-#   }
-#   if( $popcat < $cat_count ) {
-#     my $empties = $cat_count - $popcat;
-#     carp "There are $empties cats without spots.";
-#   }
-#   return $popcat;
-# }
 
 =item generate_layout
 
@@ -299,11 +236,6 @@ sub generate_layout {
   my $self = shift;
   my $style = shift || $self->layout_style;
   $self->hello_sub("style: $style");
-
-#   # general setup
-#   # moving here, despite redundant 'list_all_cats'  TODO cache cats in object
-#   my $cats = $self->list_all_cats( $style ); 
-#   $self->cat_size_to_layout( $cats );  # populate h & w fields
 
   my $method = "generate_layout_$style";
   my $ret = $self->$method;
@@ -364,7 +296,6 @@ sub generate_layout_metacats_fanout {
 
   # initialize $placed array: place the first cat in upper-left
   $self->clear_placed;
-#  my $placed = $self->placed;
   my ($x1, $y1) = ($self->initial_x, $self->initial_y);
   my $cat = shift @{ $cats };  
   $self->put_cat_in_place( $cat, $x1, $y1 );   # $cat is now a Category object TODO...
@@ -425,7 +356,6 @@ sub create_rectangle_for_cat {
   my $cat  = shift;
   my $x1   = shift;
   my $y1   = shift;
-  #  my ($width, $height) = $self->cat_width_height( $cat );
   my $width  = $cat->width;
   my $height = $cat->height;
 
@@ -453,10 +383,8 @@ sub find_place_for_cat {
   my $self       = shift;
   my $cat        = shift;   
   my $placed     = shift || $self->placed;  # aref of rectangles
-#  my $cat_name = $cat->{ name };
   my $cat_id     = $cat->id;
   my $cat_name   = $cat->name;
-#  my $mc_id    = $cat->{ metacat };
   my $mc_id      = $cat->metacat_id;
 
   $self->hello_sub("cat: " . $cat_id . ' ' . $cat_name);
@@ -471,16 +399,16 @@ sub find_place_for_cat {
   if( @placed_from_mc ) { 
     @start_rects = @placed_from_mc;
   } else { # if none yet placed from this metacat, just use the most recent
-    # @start_rects = @{ $placed }[ -3 .. -1 ];
-
     push @start_rects, $placed->[ -1 ];
     push @start_rects, $placed->[ -2 ] if defined $placed->[ -2 ];
     #  push @start_rects, $placed->[ -3 ] if defined $placed->[ -3 ];
   }
 
+  # TODO none of the candidates should overlap any of the placed
+  #      this is a point that could be checked/diagrammed
   my $candidate_locations = 
      $self->look_all_around_given_rectangles( \@start_rects, $cat );
-  # $self->candidate_dumper( $candidate_locations );  # missing method now
+  $self->candidate_dumper( $candidate_locations ) if $self->debug;
   
   my $coords = $self->evaluate_candy( 'LAST_ONE', $candidate_locations ); # STUB
   my ( $x1, $y1 ) = @{ $coords } if $coords;
@@ -576,17 +504,18 @@ sub put_cat_in_place {
 
   my $w    = $cat->width;
   my $h    = $cat->height;
-  my $rect = 
+  my $boxed_cat = 
     $self->create_rectangle( $x1, $y1, $w, $h );
 
   # stash cat stuff in meta info for the rectangle
-  my $rect_meta_info = $rect->meta;
-  $rect_meta_info->{cat}          = $cat->id;
-  $rect_meta_info->{metacat}      = $cat->metacat_id;
-  $rect_meta_info->{cat_name}     = $cat->name;
-  $rect_meta_info->{metacat_name} = $cat->metacat_name;
+  my $meta_href = $boxed_cat->meta;
+  $meta_href->{cat}          = $cat->id;
+  $meta_href->{metacat}      = $cat->metacat_id;
+  $meta_href->{cat_name}     = $cat->name;
+  $meta_href->{metacat_name} = $cat->metacat_name;
 
-  push @{ $placed }, $rect;
+  # TODO maybe: before doing stashing in placed, double-check for overlaps.
+  push @{ $placed }, $boxed_cat;
 
   my $ret = 
     $self->update_layout_for_cat( $cat, $x1, $y1 ); # save x,y,h,w to database
@@ -665,7 +594,12 @@ sub check_placed {
   my $self = shift;
   my $placed = shift || $self->placed;
 
-  my $report = '';
+#   say "===\n";
+#   say Dumper( $placed );
+#   say "===\n";
+
+  my $report = 'check_placed, called on: ' . $self->placed_summary( $placed );
+
   foreach my $i ( 0 .. $#{ $placed } ) { 
     foreach my $j ( $i+1 .. $#{ $placed } ) { 
       my $a = $placed->[ $i ];
@@ -696,6 +630,37 @@ sub check_placed {
   return $report;
 }
 
+=item placed_summary
+
+Dumps a summary of an array of href-based objects to STDERR.
+Examines x1, y1, x2, y2, meta/cat, meta/cat_name, meta/metacat
+
+Also reports width=x2-x1, height=y2-y1.
+
+=cut
+
+sub placed_summary {
+  my $self = shift;
+  my $placed = shift || $self->placed;
+
+  my $count = scalar(@{ $placed });
+  my $class = ref( $placed->[0] );
+
+#  print STDERR "$count objects of $class\n";
+  my $report = "$count objects of $class\n";
+  foreach my $p ( @{ $placed } ) {
+    my ($x1, $y1, $x2, $y2, $meta) = ( $p->x1, $p->y1, $p->x2, $p->y2, $p->meta );
+    my ($cat, $cat_name, $metacat) = @{ $meta }{ 'cat', 'cat_name', 'metacat' };
+    my ($width, $height) = ( $x2-$x1, $y2-$y1 );
+    my $fmt = 
+      qq{%4d: %-10s mc:%-4d [%6.1f,%6.1f]  [%6.1f,%6.1f]  %6.1f x %-6.1f \n};
+    $report .= sprintf $fmt, 
+      $cat, $cat_name, $metacat, $x1, $y1, $x2, $y2, $width, $height;
+  }
+  # print STDERR $report;
+  return $report;
+}
+
 
 
 
@@ -721,12 +686,12 @@ TODO  Ideally, better locations should be stuck closer to
 
 =cut
 
+# VETTED_0602
 sub look_all_around_given_rectangles {
   my $self = shift;
   my $start_rects = shift;
   my $cat = shift;
-#  $self->hello_sub("looking for place for cat: " . $cat->{id} . ' ' . $cat->{name});
-  $self->hello_sub("looking for place for cat: " . $cat->id . ' ' . $cat->name);
+  $self->hello_sub("looking for place for cat: " . $cat->id . ': ' . $cat->name);
 
   my ($width, $height) = ($cat->width, $cat->height);
 
@@ -770,7 +735,6 @@ sub look_all_around_given_rectangles {
   }
 
   my $mess = '';
-  # my $mess = defined( $new_rect ) ?  "returning rectangle" : "returning undef";
   $self->farewell( $mess );
   return \@candilocs;
 }
@@ -793,6 +757,7 @@ Example usage:
 
 =cut
 
+# VETTED_0602
 sub find_hole_for_cat_thataway {
   my $self      = shift;
   my $direction = shift; 
@@ -803,7 +768,7 @@ sub find_hole_for_cat_thataway {
   $self->hello_sub("Looking in direction: $direction to find hole for cat: " . $cat->{id} . ' ' . $cat->{name});
 
   # check if $x_trial and/or $y_trial are out-of-bounds, i.e. less than 0.
-  return () if( ($x_trial < 0) || ($y_trial < 0) );
+  return () if( ($x_trial < 0) || ($y_trial < 0) );  
 
   my @additional_places;
 
@@ -819,12 +784,12 @@ sub find_hole_for_cat_thataway {
  GAUNTLET: {
       foreach my $placed_rect ( @{ $placed } ) { 
         if ( $boxed_cat->is_overlapping( $placed_rect ) ) {  
-          # step around overlapped rectangle, try again
-          ($x, $y) =
-            $self->step_passed_rectangle( $x, $y, $direction, $placed_rect, $boxed_cat );
-          return undef if $self->position_out_of_bounds( $x, $y );
-          $boxed_cat = $self->create_rectangle_for_cat( $cat, $x, $y ); # new rect to run gauntlet
-          redo GAUNTLET; # restart check against list of placed
+            # step around overlapped rectangle, try again
+            ($x, $y) =
+              $self->step_passed_rectangle( $x, $y, $direction, $placed_rect, $boxed_cat );
+            return undef if $self->position_out_of_bounds( $x, $y );
+            $boxed_cat = $self->create_rectangle_for_cat( $cat, $x, $y ); # new rect to run gauntlet
+            redo GAUNTLET; # restart check against list of placed
         } 
        } # end foreach
   }
@@ -905,33 +870,6 @@ sub position_out_of_bounds {
 }
 
 
-# =item cat_width
-
-# Example usage:
-
-#     my $width_in_chars = $self->cat_width( $cat_spots );
-
-# =cut
-
-# # CAT
-# sub cat_width {
-#   my $self = shift;
-#   my $cat_spots = shift;
-
-#   my $max_chars = 0;
-#   # for each link line in a cat rectpara
-#   foreach my $spot ( @{ $cat_spots } ) {
-#     my $url     =  $spot->{ url };
-#     my $label   =  $spot->{ label };
-#     my $spot_id =  $spot->{ id };
-
-#     my $chars = length( $label );
-#     if ( $chars > $max_chars ) {
-#       $max_chars = $chars;
-#     }
-#   }
-#   return $max_chars;
-# }
 
 =item initialize_layout_table_with_cats
 
@@ -947,34 +885,6 @@ sub initialize_layout_table_with_cats {
     qq{ INSERT INTO layout (category) SELECT id FROM category };
   $dbh->do( $sql );
 }
-
-
-# =item update_height_width_of_cat
-
-# Store the layout information for a particular cat.
-
-# Example usage:
-
-#   $self->update_height_width_of_cat( $cat_id, $width, $height );
-
-# =cut
-
-# # TODO eventually, fold this into update_layout_for_cat, no need to do this early
-# sub update_height_width_of_cat {
-#   my $self   = shift;
-#   my $cat_id = shift;
-#   my $width  = shift;
-#   my $height = shift;
-
-#   my $sql_update = $self->sql_to_update_height_width();
-#   # UPDATE layout SET width=?, height=? WHERE category = ?
-
-#   my $dbh = $self->dbh;
-
-#   my $sth = $dbh->prepare( $sql_update );  # TODO stash prepared sth (maybe)
-#    $sth->execute( $width, $height, $cat_id ); 
-#   return;
-# }
 
 
 =item update_layout_for_cat
@@ -1013,43 +923,6 @@ sub update_layout_for_cat {
   return;
 }
 
-
-# =item update_layout_for_cat
-
-# Store the layout information for a particular cat.
-
-# Example usage:
-
-#   $self->update_layout_for_cat( $cat_id, $x, $y, $width, $height );
-
-# =cut
-
-# sub update_layout_for_cat_OLD {
-#   my $self   = shift;
-#   my $cat_id = shift;
-#   my $x      = shift;
-#   my $y      = shift;
-#   my $width  = shift;
-#   my $height = shift;
-
-#   $x      = sprintf "%.0f", $x;
-#   $y      = sprintf "%.0f", $y;
-#   $width  = sprintf "%.0f", $width;
-#   $height = sprintf "%.1f", $height;
-
-#   my $sql_update =
-#     $self->sql_to_update_layout( $cat_id, $x, $y, $width, $height );
-
-#   my $dbh = $self->dbh;
-#   my $rows_affected = 
-#     $dbh->do( $sql_update );
-#   # $dbh->commit;  # even though AutoCommit is on
-#   return $rows_affected;
-# }
-
-
-
-
 =item sql_to_update_height_width
 
   my $sql_update = $self->sql_to_update_height_width()
@@ -1063,21 +936,6 @@ sub sql_to_update_height_width {
 __END_SKULL_UHW
   return $update_sql;
 }
-
-# =item sql_to_update_x_y
-
-#   my $sql_update = $self->sql_to_update_x_y()
-
-# =cut
-
-# sub sql_to_update_x_y {
-#   my $self       = shift;
-#   my $update_sql =<<"__END_SKULL_UHW";
-#     UPDATE layout SET x_location=?, y_location=? WHERE category = ?
-# __END_SKULL_UHW
-#   return $update_sql;
-# }
-
 
 =item sql_to_update_layout
 
@@ -1093,6 +951,7 @@ sub sql_to_update_layout {
   my $self       = shift;
 
   #### TODO switch this over to a prepared statement handle?
+  ####      or, DBI prepare_cached (duh)
 
   # id | category | x_location | y_location | height | width 
   my $update_sql = 
@@ -1156,6 +1015,29 @@ sub farewell {
   my $output  = $indie . $just_sub;
   $output .= "  with $msg" if $msg;
   print STDERR "$output\n" if $debug;;
+}
+
+=item candidate_dumper
+
+Dumps a list of an array of arefs to stderr in 
+a tighter format than Data:Dumper (which isn't hard).
+
+=cut
+
+sub candidate_dumper {
+  my $self = shift;
+  my $candidates = shift;
+  my $count = scalar(@{ $candidates });
+
+  print STDERR "count of candidates: $count\n";
+  print STDERR '$candidates = [', "\n";
+  foreach my $pair (@{$candidates}) {
+    my ($x, $y) = @{ $pair };
+#    print STDERR "  [ $x, $y ]\n";
+    my $fmt = "   [%6.1f,%6.1f]\n";
+    printf STDERR $fmt, $x, $y;
+  }
+  print STDERR '];', "\n";
 }
 
 

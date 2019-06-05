@@ -109,6 +109,13 @@ has sth_cat_size      => (is => 'rw', isa => InstanceOf['DBI::st'], lazy => 1,
                           builder => 'builder_prep_sth_sql_cat_size');
 
 
+# optional list of cat ids to override the "all_cats" lookup-- 
+# so you can use restricted sets for debugging purposes. 
+has over_cats  => (is => 'rw', isa => ArrayRef[Int], lazy=>1,
+                   default => sub{ [] } );
+
+
+
 # GENHTML
 sub builder_html_file {
   my $self = shift;
@@ -200,7 +207,9 @@ sub builder_prep_sth_sql_cat_size {
 sub builder_cat_herder {
   my $self = shift;
   my $dbname = $self->dbname;
-  my $herd = Spots::Herd->new(  dbname => $dbname ); 
+#   my $herd = Spots::Herd->new(  dbname => $dbname ); 
+  my $over_cats = $self->over_cats;
+  my $herd = Spots::Herd->new( dbname => $dbname, over_cats => $over_cats ); 
   return $herd;
 }
 
@@ -287,7 +296,7 @@ sub html_css_from_layout {
 
     if( $self->debug ) {
       $cat_html =~ s{<br>$}{<b>*$cat_id*</b><br>}x; ### DEBUG
-      $cat_html .= "$cat_id: $cat_name"; ### DEBUG
+#      $cat_html .= "$cat_id: $cat_name"; ### DEBUG
     }
 
     $cat_html .= qq{</div>\n};

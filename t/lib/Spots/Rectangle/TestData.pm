@@ -61,8 +61,13 @@ BEGIN {
                             qw(
                                 @is_overlapping_cases
                                 @edge_distance_cases 
+
+                                generate_placed_grendel1
+                                generate_placed_raw
+
                                 draw_cases
                                 draw_placed
+                                generate_placed_grendel1
                              ) ] );
   @EXPORT_OK = ( @{ $EXPORT_TAGS{'all'} } );
   @EXPORT = qw(  ); # items to export into callers namespace by default (avoid this!)
@@ -247,7 +252,253 @@ our @is_overlapping_cases =
     name => "found overlap by via png, not detected by metacats_fanout",
    },
 
+   # Grendel1 run on cats 1, 2, 3, 4 (oakland, sf, jobs, search)--  June 03, 2019
+   {
+    r1_coords => [5.0,   0.0, 113.0,  11.2],   # Grendel1 cat 1
+    r2_coords => [5.0,  22.5, 113.0,  33.7],   # Grendel1 cat 2
+    expected  => 0,   # no overlap, in fact a large gap
+    name => "Grendel1, first two, no overlap",
+   },
+
+   {
+    r1_coords => [5.0,  22.5, 113.0,  33.7],   # Grendel1 cat 2
+    r2_coords => [5.0,  11.7, 113.0,  16.5],   # Grendel1 cat 3
+    expected  => 0,   # no overlap
+    name => "Grendel1, cat 2 & 3: no overlap",
+   },
+   {
+    r1_coords => [5.0,  11.7, 113.0,  16.5],   # Grendel1 cat 3
+    r2_coords => [5.0,   0.0, 113.0,  11.2],   # Grendel1 cat 1
+    expected  => 0,   # no overlap
+    name => "Grendel1, cat 3 & 1: no overlap (near each other)",
+   },
+   {
+    r1_coords => [5.0,  22.5, 113.0,  33.7],   # Grendel1 cat 2
+    r2_coords => [5.0,  17.0, 113.0,  26.6],   # Grendel1 cat 4
+    expected  => 1,   # OVERLAP
+    name => "Grendel1, cat 2 & 4: OVERLAPS",
+   },
+   {
+    r1_coords => [5.0,  17.0, 113.0,  26.6],   # Grendel1 cat 4
+    r2_coords => [5.0,  11.7, 113.0,  16.5],   # Grendel1 cat 3
+    expected  => 0,   # no overlap
+    name => "Grendel1, cat 4 & 3: no overlaps",
+   },
+   {
+    r1_coords => [5.0,  17.0, 113.0,  26.6],   # Grendel1 cat 4
+    r2_coords => [5.0,   0.0, 113.0,  11.2],   # Grendel1 cat 1
+    expected  => 0,   # no overlap
+    name => "Grendel1, cat 4 & 1: no overlaps",
+   },
   );
+
+
+
+
+=item generate_placed_grendel1
+
+Example usage:
+
+  my $placed = generate_placed_grendel1();
+
+Generates and returns the "placed_grendel1" data set.
+
+placed_grendel1 is an aref of four Rectangle objects
+for cat ids: 1, 3, 2, 4.
+
+This was originally obtained by Data::Dumper::Named
+from a 'grendel1' dry run, circa: June 4, 2019.
+
+Question: can you detect that 2 & 4 overlap?
+
+Entering the coords manually in the L<@is_overlapping_cases> 
+structure (see above), and running the Rectangle.pm 
+is_overlapping method on them via 17-Spots-Rectangle-is_overlapping.t,
+*then* the answer is "yes", we *can* detect the overlap.
+
+An yet when the MetacatsFanout.pm routine check_placed is run 
+on this data, it *fails* to see the overlap, despite the 
+fact that it internally is using the same is_overlapping method.
+
+(And in the current state of the MetacatsFanout code,
+it misses this overlap and places rectangles 2 & 4 on top 
+of each other.)
+
+Note: cleaned-up layout of keys for readability, so I wrote 
+a simple test to verify the data is unchanged:
+
+  ~/End/Cave/Spots/Wall/Spots/t/13-Spots-Rectangle-TestData.t
+
+=cut
+
+sub generate_placed_grendel1 {
+
+  my $placed_grendel1 = [
+            bless( {
+                     'x1' => 5,
+                     'y1' => 0,
+                     'x2' => 113,
+                     'y2' => '11.2',
+                     'coords' => [
+                                   5,
+                                   0,
+                                   113,
+                                   '11.2'
+                                 ],
+
+                     'meta' => {
+                                 'cat'          => 1,
+                                 'cat_name'     => 'oakland',
+                                 'metacat'      => 2,
+                                 'metacat_name' => 'local',
+                               },
+                     'y_weight' => 1,
+                   }, 'Spots::Rectangle' ),
+            bless( {
+                     'x1' => 5,
+                     'y1' => '11.7',
+                     'x2' => 113,
+                     'y2' => '16.5',
+                     'meta' => {
+                                 'cat'          => 3,
+                                 'cat_name'     => 'jobs',
+                                 'metacat'      => 10,
+                                 'metacat_name' => 'working',
+                               },
+                     'y_weight' => 1,
+                     'coords' => [
+                                   5,
+                                   '11.7',
+                                   113,
+                                   '16.5'
+                                 ],
+                   }, 'Spots::Rectangle' ),
+            bless( {
+                     'x1' => 5,
+                     'y1' => '22.5',
+                     'x2' => 113,
+                     'y2' => '33.7',
+                     'meta' => {
+                                 'cat'          => 2,
+                                 'cat_name'     => 'sf',
+                                 'metacat'      => 2,
+                                 'metacat_name' => 'local',
+                               },
+                     'y_weight' => 1,
+                     'coords' => [
+                                   5,
+                                   '22.5',
+                                   113,
+                                   '33.7'
+                                 ],
+                   }, 'Spots::Rectangle' ),
+            bless( {
+                     'coords' => [
+                                   5,
+                                   17,
+                                   113,
+                                   '26.6'
+                                 ],
+                     'y_weight' => 1,
+                     'meta' => {
+                                 'cat'          => 4,
+                                 'cat_name'     => 'search',
+                                 'metacat'      => 6,
+                                 'metacat_name' => 'infostrut',
+                               }
+                   }, 'Spots::Rectangle' )
+          ];
+
+  # return a copy of the data to prevent modification of source
+  my @placed = @{ $placed_grendel1};
+  return \@placed;
+}
+
+
+
+sub generate_placed_raw {
+  my $placed_grendel1_raw = [
+            bless( {
+                     'x2' => 113,
+                     'coords' => [
+                                   5,
+                                   0,
+                                   113,
+                                   '11.2'
+                                 ],
+                     'y1' => 0,
+                     'meta' => {
+                                 'cat' => 1,
+                                 'metacat' => 2,
+                                 'cat_name' => 'oakland',
+                                 'metacat_name' => 'local'
+                               },
+                     'y_weight' => 1,
+                     'x1' => 5,
+                     'y2' => '11.2'
+                   }, 'Spots::Rectangle' ),
+            bless( {
+                     'x1' => 5,
+                     'meta' => {
+                                 'cat_name' => 'jobs',
+                                 'metacat_name' => 'working',
+                                 'metacat' => 10,
+                                 'cat' => 3
+                               },
+                     'y_weight' => 1,
+                     'y2' => '16.5',
+                     'x2' => 113,
+                     'coords' => [
+                                   5,
+                                   '11.7',
+                                   113,
+                                   '16.5'
+                                 ],
+                     'y1' => '11.7'
+                   }, 'Spots::Rectangle' ),
+            bless( {
+                     'meta' => {
+                                 'metacat_name' => 'local',
+                                 'cat_name' => 'sf',
+                                 'cat' => 2,
+                                 'metacat' => 2
+                               },
+                     'y_weight' => 1,
+                     'x1' => 5,
+                     'y2' => '33.7',
+                     'coords' => [
+                                   5,
+                                   '22.5',
+                                   113,
+                                   '33.7'
+                                 ],
+                     'x2' => 113,
+                     'y1' => '22.5'
+                   }, 'Spots::Rectangle' ),
+            bless( {
+                     'coords' => [
+                                   5,
+                                   17,
+                                   113,
+                                   '26.6'
+                                 ],
+                     'y_weight' => 1,
+                     'meta' => {
+                                 'metacat_name' => 'infostrut',
+                                 'cat_name' => 'search',
+                                 'metacat' => 6,
+                                 'cat' => 4
+                               }
+                   }, 'Spots::Rectangle' )
+          ];
+
+  # return a copy of the data to prevent modification of source
+  my @placed = @{ $placed_grendel1_raw};
+  return \@placed;
+}
+
+
+
 
 
 =item @edge_distance_cases 
@@ -308,6 +559,13 @@ our @edge_distance_cases =
    },
 
   );
+
+
+
+
+
+
+
 
 
 
@@ -439,8 +697,8 @@ sub draw_placed {
   my $rects      = shift;
   my $output_loc = shift || cwd();
   my $basename   = shift || 'rects';
-  my $scale      = shift || 3;
-  my $suffix = '01'; # TODO uniquify?  Maybe with hh_mm?
+  my $scale      = shift || 2;
+  my $suffix     = '01'; # TODO uniquify?  Maybe with hh_mm?
 
   my $output_file = "$output_loc/$basename-$suffix.png";
   open my $imfh, '>', $output_file or die "$!";
@@ -464,6 +722,9 @@ sub draw_placed {
   for my $r ( @{ $rects } ) {
     my @coords_raw = @{ $r->coords };
     my ( $x1, $y1, $x2, $y2 ) = map{ $_ * $scale + $dwg_off } @coords_raw;
+    # force y axis to be larger scale than x.
+    $y1 *= 3;
+    $y2 *= 3;
     my $cat = $r->cat;
 
     # use original "raw" values for point labels:
@@ -486,13 +747,11 @@ sub draw_placed {
     $im->arc($x2,$y2,$d,$d,0,360,$color);
 
     ($xt, $yt) = ( $x1 + $x1off, $y1 + $y1off );
-    $im->string( gdMediumBoldFont, $xt, $yt, "($lx1, $ly1) $cat", $black );
+#    $im->string( gdMediumBoldFont, $xt, $yt, "($lx1, $ly1) $cat", $black );
+    $im->string( gdMediumBoldFont, $xt, $yt, "$cat: ($lx1, $ly1)", $color );
     ($xt, $yt) = ( $x2 + $x2off, $y2 + $y2off );
-    $im->string( gdMediumBoldFont, $xt, $yt, "($lx2, $ly2) $cat", $black );
-
-
-#     ($xt, $yt) = ( 5, 430 );
-#     $im->string( gdMediumBoldFont, $xt, $yt, "$cat", $black );
+#    $im->string( gdMediumBoldFont, $xt, $yt, "($lx2, $ly2) $cat", $black );
+    $im->string( gdMediumBoldFont, $xt, $yt, "$cat: ($lx2, $ly2)", $color );
 
   }
   # Convert the image to PNG and write it to file.

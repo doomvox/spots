@@ -28,15 +28,15 @@ use warnings;
 use strict;
 $|=1;
 use Carp;
-use Data::Dumper;
+use Data::Dumper::Names;
 
 use File::Path      qw( mkpath );
 use File::Basename  qw( fileparse basename dirname );
 use File::Copy      qw( copy move );
-use autodie         qw( :all mkpath copy move ); # system/exec along with open, close, etc
+use autodie         qw( :all mkpath copy move ); # system, exec, open, close...
 use Cwd             qw( cwd abs_path );
 use Env             qw( HOME );
-use String::ShellQuote qw( shell_quote_best_effort );
+use String::ShellQuote qw( shell_quote shell_quote_best_effort );
 use Config::Std;
 use Getopt::Long    qw( :config no_ignore_case bundling );
 use List::Util      qw( first max maxstr min minstr reduce shuffle sum );
@@ -65,11 +65,21 @@ use Spots::HomePage::Generate;
 use lib ("$Bin/../t/lib");
 use Spots::Rectangle::TestData ':all';  # draw_placed
 
+my @over_cats = @ARGV; # optionally, a list of cat ids on the command-line 
+
+#DEBUG
+# @over_cats = qw( 12 32 55 5 );
+ @over_cats = qw( 1 2 3 4 );
+# @over_cats = qw( 1 2 3  );
+
+say Dumper( \@over_cats ) if @over_cats;
 
 # TODO rethink:
-my $base             = shift || "mah_moz_ohm";
-my $runny = 'Minotaur';
-my $output_directory = shift || "/home/doom/End/Cave/Spots/Output/$runny"; 
+## my $base             = shift || "mah_moz_ohm";
+my $base             =  "mah_moz_ohm";
+my $runny = 'Fishhook';
+# my $output_directory = shift || "/home/doom/End/Cave/Spots/Output/$runny"; 
+my $output_directory = "/home/doom/End/Cave/Spots/Output/$runny"; 
 
 mkpath( $output_directory ) unless -d $output_directory;
 
@@ -80,7 +90,8 @@ my $obj = Spots::HomePage::Layout::MetacatsFanout->new(
                                output_basename  => $base,
                                output_directory => $output_directory,
                                db_database_name => 'spots',
-#                                db_database_name => 'spots_test',
+                               db_database_name => 'spots_test',
+                               over_cats => \@over_cats,
                               );
 
 {no warnings 'once'; $DB::single = 1;}
@@ -90,16 +101,26 @@ my $obj = Spots::HomePage::Layout::MetacatsFanout->new(
 # say "Doing a $style run in $runny";
 # $obj->generate_layout( $style );
 
+$obj->clear_layout;
+
 $obj->generate_layout_metacats_fanout();
 
 my $placed = $obj->placed;
-draw_placed( $placed, $output_directory, 'placed' );
+draw_placed( $placed, $output_directory, 'placed', 6 );
+
+{ no warnings 'once'; $DB::single = 1; }
+my $report = $obj->check_placed( $placed );
+
+say $report;
+
 
 my $genner =
   Spots::HomePage::Generate->new(
                                output_basename  => $base,
                                output_directory => $output_directory,
+                               over_cats => \@over_cats,
                                            );
+
 $genner->html_css_from_layout();
 
 # TODO check whether expected file has been created/modified
