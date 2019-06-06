@@ -107,7 +107,11 @@ $obj->clear_layout;
 $obj->generate_layout_metacats_fanout();
 
 my $placed = $obj->placed;
-draw_placed( $placed, $output_directory, 'placed', 2 );
+
+# draw_placed( $placed, $output_directory, 'placed', 2 );
+use Spots::Rectangler;
+my $tangler = Spots::Rectangler->new();
+$tangler->draw_placed( $placed, $output_directory, 'placed', 2 );
 
 { no warnings 'once'; $DB::single = 1; }
 my $report = $obj->check_placed( $placed );
