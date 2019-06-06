@@ -78,7 +78,7 @@ say Dumper( \@over_cats ) if @over_cats;
 # TODO rethink:
 ## my $base             = shift || "mah_moz_ohm";
 my $base             =  "mah_moz_ohm";
-my $runny = 'MrScratch';
+my $runny = 'LatexLucy';
 # my $output_directory = shift || "/home/doom/End/Cave/Spots/Output/$runny"; 
 my $output_directory = "/home/doom/End/Cave/Spots/Output/$runny"; 
 

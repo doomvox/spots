@@ -595,17 +595,12 @@ sub ungoodness {
   my $self = shift;
   my $r1   = shift;
   my $relatives = shift;
-#   # TODO: eventually, try doing a vector summation
-#   my ($dist, $total);
-#   foreach my $other ( @{ $relatives } ) {
-#     $dist = $r1->distance( $other );
-#     $total += $dist;
-#   }
-#   $dist = $total;
-  my $dist = $r1->distance_from_group( $relatives );
+#  my $dist = $r1->distance_from_group( $relatives );
+  my $dist = $r1->distance_from_group_and_origin( $relatives );
   return $dist;
 }
 
+# Older style
 sub ungoodness_pairdists {
   my $self = shift;
   my $r1   = shift;
@@ -617,7 +612,6 @@ sub ungoodness_pairdists {
     $dist = $r1->distance( $other );
     $total += $dist;
   }
-
   $dist = $total;
   return $dist;
 }

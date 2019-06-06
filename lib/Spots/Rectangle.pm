@@ -334,6 +334,38 @@ sub distance_from_group {
 
 
 
+=item distance_from_group_and_origin
+
+Like L<distance_from_group> but also factors in distance from origin.
+
+=cut
+
+sub distance_from_group_and_origin {
+ my $self = shift;
+  my $relatives = shift;
+  my $y_weight = shift || $self->y_weight;
+  my $origin_weight = 2;
+
+  my ($xc, $yc) = @{ $self->center };
+
+  my ($sum_x, $sum_y) = (0, 0); 
+  foreach my $other ( @{ $relatives } ) {
+    my ($xo, $yo) = @{ $other->center };
+    my $delta_x = $xc - $xo;
+    my $delta_y = $yc - $yo;
+    $sum_x += $delta_x;
+    $sum_y += $delta_y;
+  }
+
+   $sum_x += ( $xc * $origin_weight );
+#   $sum_y += ( $yc * $y_weight * $origin_weight  );  # logically should do this...
+   $sum_y += ( $yc *  $origin_weight  );              # ... but I like this "mistake" better.
+
+  my $sum = sqrt( $sum_x**2 + ($sum_y * $y_weight)**2 );
+  return $sum;
+}
+
+
 
 
 =item is_overlapping
