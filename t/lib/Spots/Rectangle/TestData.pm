@@ -5,7 +5,7 @@ package Spots::Rectangle::TestData;
 
 =head1 NAME
 
-Spots::Rectangle::TestData - TODO Perl extension for blah blah blah
+Spots::Rectangle::TestData - some data to test the Spots project
 
 =head1 SYNOPSIS
 
@@ -23,7 +23,9 @@ Spots::Rectangle::TestData - TODO Perl extension for blah blah blah
 =head1 DESCRIPTION
 
 Spots::Rectangle::TestData is a library with test cases available 
-for export.
+for export.  Some of them are exported as raw data structures, 
+others use a subroutine wrapper to generate copies (to protect 
+the source data from being mangled in use).
 
 For example, it contains @is_overlapping_cases used in the
 Spots::Rectangle tests in t/17-Spots-Rectangle-is_overlapping.t.
@@ -66,7 +68,6 @@ BEGIN {
                                 generate_placed_raw
 
                                 draw_cases
-                                draw_placed
 
                              ) ] );
   @EXPORT_OK = ( @{ $EXPORT_TAGS{'all'} } );

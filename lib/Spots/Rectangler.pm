@@ -30,6 +30,10 @@ Spots::Rectangler is a module that that manages a bunch of Spots::Rectangle obje
 
 (As of this writing, it just has a routine to draw diagrams of an array of them.)
 
+Note; there is also a draw_cases routine for diagramming pairs of rectangles
+which is still in Spots::Rectangle::TestData located in the project's t/lib.
+
+
 =head1 METHODS
 
 =over
@@ -65,7 +69,17 @@ to the names of the object attributes. These attributes are:
 
 =over
 
-=item <TODO fill-in attributes here... most likely, sort in order of utility>
+=item canvas_width   
+
+The width of generated png in px, default 1800
+
+=item canvas_height   
+
+The height of generated png in px, default 900.
+
+=item scale 
+
+Because you often want to scale-up when plotting rectangles: default 1.5.
 
 =back
 
@@ -75,9 +89,6 @@ to the names of the object attributes. These attributes are:
 # has is_loop => ( is => 'rw', isa => Int, default => 0 );
 
 { no warnings 'once'; $DB::single = 1; }
-
-### Fill in additional methods here
-### hint: perlnow-insert-method
 
 has canvas_width  => ( is => 'rw', isa => Num, default => 1800 );
 has canvas_height => ( is => 'rw', isa => Num, default => 900 );
