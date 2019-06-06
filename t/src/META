@@ -1,0 +1,13 @@
+Thu  May 30, 2019  19:35  fandango
+/home/doom/End/Cave/Spots/Wall/Spots/t/src/META
+              
+This location:
+  /home/doom/End/Cave/Spots/Wall/Spots/t/src/
+
+
+Is intended for source data files to be used by the *.t files.
+
+In the event that the code *modifies* something, you'd copy  
+the thing to be modified from here to ../out, 
+and then act on it there.
+

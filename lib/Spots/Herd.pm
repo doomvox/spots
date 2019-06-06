@@ -159,7 +159,6 @@ sub builder_db_connection {
   return $dbh;
 }
 
-
 =item generate_sql_for_all_cat_ids
 
 Query to return cat ids with associated spot counts.
@@ -173,11 +172,44 @@ This filters out cats without spots.
 sub generate_sql_for_all_cat_ids {
   my $self = shift;
   my $sql =<<"__END_ALL_CAT_SKULL";
+  SELECT category.id AS id, spotted_cats.cnt AS spot_count
+    FROM 
+     (SELECT category.id AS id, count(*) AS cnt
+      FROM category
+      JOIN spots ON (category.id = spots.category) 
+      GROUP BY category.id
+      HAVING count(*) > 0) AS spotted_cats,
+     category,
+     metacat
+  WHERE 
+     category.metacat = metacat.id  AND 
+     category.id = spotted_cats.id
+  ORDER BY
+     metacat.sortcode, category.id
+__END_ALL_CAT_SKULL
+  return $sql;
+}
+
+
+
+=item generate_sql_for_all_cat_ids_nomcsort
+
+Query to return cat ids with associated spot counts.
+
+This filters out cats without spots.
+
+(( TODO Q: is this the right place to do this? ))
+
+=cut
+
+sub generate_sql_for_all_cat_ids_nomcsort {
+  my $self = shift;
+  my $sql =<<"__END_ALL_CAT_SKULL_NOMCS";
       SELECT category.id AS id, count(*)
       FROM category JOIN spots ON (category.id = spots.category) 
       GROUP BY category.id
       HAVING count(*) > 0
-__END_ALL_CAT_SKULL
+__END_ALL_CAT_SKULL_NOMCS
   return $sql;
 }
 

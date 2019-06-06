@@ -117,11 +117,9 @@ has y1 => ( is => 'ro', isa => Num, lazy => 1, builder=>'build_y1' );
 has x2 => ( is => 'ro', isa => Num, lazy => 1, builder=>'build_x2' );
 has y2 => ( is => 'ro', isa => Num, lazy => 1, builder=>'build_y2' );
 
+our $Y_WEIGHT = 6.5;  # 1  12  6  8  9    8.5  10 
 # has y_weight => ( is => 'ro', isa => Int, default => 10 );  # 1 rem =~ 10 px , used by "distance" calculation
-has y_weight => ( is => 'ro', isa => Int, default => 1 );  # comparing rem to px
-# has y_weight => ( is => 'ro', isa => Num, default => 12 );  # comparing rem to px
-# has y_weight => ( is => 'ro', isa => Num, default => 9 );  # comparing rem to px
-# has y_weight => ( is => 'ro', isa => Num, default => 8.5 );  # comparing rem to px
+has y_weight => ( is => 'ro', isa => Num, default => $Y_WEIGHT );  # comparing rem to px
 
 has center => ( is => 'ro', isa => ArrayRef, lazy => 1, builder=>'calculate_center' ); 
 
@@ -308,89 +306,32 @@ sub distance {
 
 
 
+=item distance_from_group
 
-=item edge_distance
-
-Distance between the edges of two rectangles, presumably non-overlapping, 
-though that is not checked here. 
-
-Returns the rms of the minimum absolute deltas of x and y.
-
-
-                                      delta-y candidates:
-                                      
-  A                                 |   
-  (x1, y1)                          v   
-    o------------o                 ---         ---                
-    |            |    B            Ay1-         ^ 
-    |            |    (x1, y1)       By1        |       
-    |            |     o-------o   ---          |       ---
-    |            |     |       |    ^          Ay1-By2   ^ 
-    |            |     |       |    |    |      |        |
-    |            |     |       |         v      |       By1-Ay2 
-    o------------o     |       |       -----    |        |        
-            (x2, y2)   |       |      Ay2-By2   v        V         
-                       o-------o       -----   ---      ---
-                              (x2, y2)   ^      
-                                         |      
-                 |<--->|                        
-                           
-                 min abs             Here the min abs is 
-                 delta-x =             Ay2-By2
-                  Ax2 - Bx1
-
-
-This is a nice attempt, but a complete flop:
-
-
-  o----o o---------o
-  |    | |         |   seems to  always go this way --->
-  |    | |         |   I think: the delta-y of top edge always dominates 
-  o----o |         |   the low-end.
-         o---------o
-
+The vector sum of the distances between a given rectangle and a
+group of rectangles.
 
 =cut
 
-sub edge_distance {
-  my $self  = shift;
-  my $other = shift;
+sub distance_from_group {
+  my $self = shift;
+  my $relatives = shift;
   my $y_weight = shift || $self->y_weight;
 
-  my $d = $self->distance( $other );
+  my ($xc, $yc) = @{ $self->center };
 
-  my $Ax1 = $self->x1;
-  my $Ax2 = $self->x2;
-  my $Ay1 = $self->y1;
-  my $Ay2 = $self->y2;
-
-  my $Bx1 = $other->x1;
-  my $Bx2 = $other->x2;
-  my $By1 = $other->y1;
-  my $By2 = $other->y2;
-
-  my $delta_x = 
-    min(
-      abs( $Ax1-$Bx1 ),
-      abs( $Ax2-$Bx2 ),
-      abs( $Ax1-$Bx2 ),
-      abs( $Ax2-$Bx1 )
-      );
-
-  my $delta_y = 
-    min(
-      abs( $Ay1-$By1 ),
-      abs( $Ay2-$By2 ),
-      abs( $Ay1-$By2 ),
-      abs( $Ay2-$By1 )
-      );
-  $delta_y *= $y_weight;
-# This is good:
-     my $distance = sqrt( ($delta_x)**2 + ($delta_y)**2 );
-# Might be a bit saner (reports 0 when expected to)
-#    my $distance = min( $delta_x, $delta_y );
-  return $distance;
+  my ($sum_x, $sum_y) = (0, 0); 
+  foreach my $other ( @{ $relatives } ) {
+    my ($xo, $yo) = @{ $other->center };
+    my $delta_x = $xc - $xo;
+    my $delta_y = $yc - $yo;
+    $sum_x += $delta_x;
+    $sum_y += $delta_y;
+  }
+  my $sum = sqrt( $sum_x**2 + ($sum_y * $y_weight)**2 );
+  return $sum;
 }
+
 
 
 

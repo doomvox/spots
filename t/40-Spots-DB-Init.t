@@ -104,7 +104,8 @@ ok(1, "Traditional: If we made it this far, we're ok.");
    $test_name = "Testing $subname: load_data";
    $sidb->load_data;
 
-   $dbh->disconnect; # switching to another db handle to be neat (probably no need)
+   #  $dbh->disconnect; # switching to another db handle to be neat (probably no need)
+   #  ... and that's good, because now a second "new" on Handle just gives you the same one.
    my $dbhh2 = Spots::DB::Handle->new( dbname => $dbname, );
    my $dbh2 = $dbhh2->dbh;
 

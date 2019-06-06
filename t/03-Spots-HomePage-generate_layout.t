@@ -38,8 +38,8 @@ ok(1, "Traditional: If we made it this far, we're ok.");
    my $obj = Spots::HomePage->new(
                                    output_basename  => $base,
                                    output_directory => $output_directory,
-                                   db_database_name => 'spots_test',
-#                                   db_database_name => 'spots',
+                                   dbname => 'spots_test',
+#                                   dbname => 'spots',
                                    layout_style => 'by_size',
                                   );
 

@@ -67,7 +67,7 @@ BEGIN {
 
                                 draw_cases
                                 draw_placed
-                                generate_placed_grendel1
+
                              ) ] );
   @EXPORT_OK = ( @{ $EXPORT_TAGS{'all'} } );
   @EXPORT = qw(  ); # items to export into callers namespace by default (avoid this!)
@@ -120,7 +120,7 @@ our @is_overlapping_cases =
    {
     r1_coords => [ 100, 100, 200, 200 ],
     r2_coords => [ 210, 210, 210, 210 ],
-    expected  => 0,             # true, overlap
+    expected  => 0,             # false, no-overlap
     name => "second is degenerate point but just near x2,y2",
    },
    {
@@ -697,7 +697,7 @@ sub draw_placed {
   my $rects      = shift;
   my $output_loc = shift || cwd();
   my $basename   = shift || 'rects';
-  my $scale      = shift || 2;
+  my $scale      = shift || 1.5;
   my $suffix     = '01'; # TODO uniquify?  Maybe with hh_mm?
 
   my $output_file = "$output_loc/$basename-$suffix.png";

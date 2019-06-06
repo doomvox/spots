@@ -69,15 +69,16 @@ my @over_cats = @ARGV; # optionally, a list of cat ids on the command-line
 
 #DEBUG
 # @over_cats = qw( 12 32 55 5 );
- @over_cats = qw( 1 2 3 4 );
+# @over_cats = qw( 1 2 3 4 );
 # @over_cats = qw( 1 2 3  );
+@over_cats = ();
 
 say Dumper( \@over_cats ) if @over_cats;
 
 # TODO rethink:
 ## my $base             = shift || "mah_moz_ohm";
 my $base             =  "mah_moz_ohm";
-my $runny = 'Fishhook';
+my $runny = 'MrScratch';
 # my $output_directory = shift || "/home/doom/End/Cave/Spots/Output/$runny"; 
 my $output_directory = "/home/doom/End/Cave/Spots/Output/$runny"; 
 
@@ -90,7 +91,7 @@ my $obj = Spots::HomePage::Layout::MetacatsFanout->new(
 #                               output_basename  => $base,
 #                               output_directory => $output_directory,
                                db_database_name => 'spots',
-                               db_database_name => 'spots_test',
+#                               db_database_name => 'spots_test',
                                over_cats => \@over_cats,
                               );
 
@@ -106,7 +107,7 @@ $obj->clear_layout;
 $obj->generate_layout_metacats_fanout();
 
 my $placed = $obj->placed;
-draw_placed( $placed, $output_directory, 'placed', 6 );
+draw_placed( $placed, $output_directory, 'placed', 2 );
 
 { no warnings 'once'; $DB::single = 1; }
 my $report = $obj->check_placed( $placed );

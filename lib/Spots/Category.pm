@@ -75,11 +75,8 @@ has debug            => (is => 'rw', isa => Bool, default => sub{return ($DEBUG|
 
 has id               => (is => 'ro', isa => Int, required=>1 );  
 has dbname           => (is => 'rw', isa => Str, default => 'spots' );
-# has x_scale          => (is => 'rw', isa => Num, default => 12 );  # average px per char
-# has y_scale          => (is => 'rw', isa => Num, default => 1.3 ); # rem per line
-has x_scale          => (is => 'rw', isa => Num, default => 12 );  # average px per char
-has y_scale          => (is => 'rw', isa => Num, default => 1.6 ); # rem per line
-
+has x_scale          => (is => 'rw', isa => Num, default => 10 );  # average px per char
+has y_scale          => (is => 'rw', isa => Num, default => 1.32 ); # rem per line
 
 has spots            => (is => 'ro', isa => ArrayRef, lazy=>1, builder => 'builder_spots');
 has spot_count       => (is => 'rw', isa => Int,      lazy=>1, builder => 'builder_spot_count');  

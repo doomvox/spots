@@ -295,7 +295,7 @@ sub html_css_from_layout {
     }
 
     if( $self->debug ) {
-      $cat_html =~ s{<br>$}{<b>*$cat_id*</b><br>}x; ### DEBUG
+#      $cat_html =~ s{<br>$}{<b>*$cat_id*</b><br>}x; ### DEBUG
 #      $cat_html .= "$cat_id: $cat_name"; ### DEBUG
     }
 

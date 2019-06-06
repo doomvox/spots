@@ -97,15 +97,16 @@ has right_bound => (is => 'ro', isa => Num, default => 10000 );
 # has vertical_scale     => (is => 'rw', isa => Num,  default => 1.3 ); # rem per line
 # has horizontal_scale   => (is => 'rw', isa => Num,  default => 12  ); # px per char
 
-has vertical_padding   => (is => 'rw', isa => Num,  default => 2   );  # rem
-has horizontal_padding => (is => 'rw', isa => Int,  default => 10  );  # px 
+# Unused here: 
+# has vertical_padding   => (is => 'rw', isa => Num,  default => 2   );  # rem
+# has horizontal_padding => (is => 'rw', isa => Int,  default => 10  );  # px 
 
 # used by metacats_fanout, find_hole_for_cat_thataway
-has nudge_x   => (is => 'rw', isa => Num,  default => 1.5 );  # rem
-has nudge_y   => (is => 'rw', isa => Int,  default => 6   );  # px 
+has nudge_x   => (is => 'rw', isa => Num,  default => 1 );  # rem   was 1.5
+has nudge_y   => (is => 'rw', isa => Int,  default => 4 );  # px    was 6
 
 has initial_y => (is => 'rw', isa => Int,  default => 0    ); # rem 
-has initial_x => (is => 'rw', isa => Int,  default => 5    ); # px
+has initial_x => (is => 'rw', isa => Int,  default => 4    ); # px
 
 has layout_style => (is => 'rw', isa => Str, default => 'metacats_fanout' ); 
 
@@ -135,8 +136,6 @@ sub builder_db_connection {
   my $dbh = $obj->dbh;
   return $dbh;
 }
-
-
 
 =item builder_cat_herder
 
@@ -184,15 +183,15 @@ the the layout table.
 Blank out the coordinate columns in the layout table:
   x_location, y_location, width, height
 
-
+Note, this feature has no safety feature confining it only to "test" 
+dbnames or anything like that. This data is assumed to be fluid
+and constantly re-generated.  (You can argue they shouldn't be in the db.)
 
 =cut
 
 # Deleting this:
 # Safety feature: this will only work if dname contains string "test".
 # TODO that suggests it should be in a package of Test utitlites.
-
-
 
 sub clear_layout {
   my $self = shift;
@@ -369,8 +368,8 @@ sub create_rectangle_for_cat {
 
 =item find_place_for_cat
 
-pick location for cat, avoid collision with anything in placed.
-also stash cat in "placed" data structure
+Pick location for cat, avoiding collision with anything in placed.
+Returns the x & y value of the location.
 
 Example usage:
 
@@ -392,30 +391,57 @@ sub find_place_for_cat {
   # We start at an already placed rectangle (the "starting rectangle")
   # and look from there in various directions.
 
-  # choose possible starting points from already placed rects 
-  my @start_rects;
-  my @placed_from_mc = grep { $_->metacat == $mc_id } @{ $placed }; 
+   my $relatives = $self->relatives( $mc_id );
 
-  if( @placed_from_mc ) { 
-    @start_rects = @placed_from_mc;
-  } else { # if none yet placed from this metacat, just use the most recent
-    push @start_rects, $placed->[ -1 ];
-    push @start_rects, $placed->[ -2 ] if defined $placed->[ -2 ];
-    #  push @start_rects, $placed->[ -3 ] if defined $placed->[ -3 ];
-  }
-
-  # TODO none of the candidates should overlap any of the placed
-  #      this is a point that could be checked/diagrammed
+  # TODO *none* of the candidates should overlap any of the placed
+  #      At this point, it could be checked/diagrammed
   my $candidate_locations = 
-     $self->look_all_around_given_rectangles( \@start_rects, $cat );
+     $self->look_all_around_given_rectangles( $relatives, $cat );
   $self->candidate_dumper( $candidate_locations ) if $self->debug;
   
-  my $coords = $self->evaluate_candy( 'LAST_ONE', $candidate_locations ); # STUB
+#  my $coords = $self->evaluate_candy( 'LAST_ONE', $candidate_locations ); # STUB  Fishhook
+#  my $coords = $self->evaluate_candy( 'THREE_CYCLE', $candidate_locations ); # STUB  JohnGalt
+  my $coords = $self->evaluate_candy( 'THROAT', $candidate_locations, $relatives, $cat ); # STUB  PaleBrownThing
   my ( $x1, $y1 ) = @{ $coords } if $coords;
 
   $self->farewell();
   return ( $x1, $y1 );
 }
+
+
+
+=item relatives
+
+Returns an aref of some placed cats we're going to try to stay near. 
+These are either related cats (members of the same metacat), or 
+a small selection of the most recently placed.
+
+Example usage: 
+
+   my $relatives = $self->relatives( $metacat_id );
+
+=cut
+
+sub relatives {
+  my $self = shift;
+  my $mc_id      = shift;
+  my $placed     = shift || $self->placed;  # aref of rectangles
+
+  # choose possible starting points from already placed rects 
+  my @relatives;
+  my @placed_from_mc = grep { $_->metacat == $mc_id } @{ $placed }; 
+  if( @placed_from_mc ) { 
+    @relatives = @placed_from_mc;
+  } else { # if none yet placed from this metacat, just use the most recent
+    # TODO slice, make number of them a parameter
+    push @relatives, $placed->[ -1 ];
+    push @relatives, $placed->[ -2 ] if defined $placed->[ -2 ];
+    #  push @relatives, $placed->[ -3 ] if defined $placed->[ -3 ];
+  }
+  return \@relatives;
+}
+
+
 
 
 =item evaluate_candy
@@ -427,12 +453,30 @@ the gaps for now.
 
 sub evaluate_candy {
   my $self = shift;
-  my $evaluation_method = shift;
-  my $candidate_locations = shift;
+  my $evaluation_method   = shift;  
+  my $candidate_locations = shift; 
+  my $relatives           = shift;  # a set of associated rectparas we're going to stay near
+  my $cat = shift;
+
   state $i;  # my first use of "state"
   my $coords;
   given( $evaluation_method ) {
-    when (/^LAST_ONE$/)
+    when (/^THROAT$/)
+          { my $low_pair;
+            my $least = 10000000;
+            foreach my $candy ( @{ $candidate_locations } ) {
+              my ($x1, $y1) = @{ $candy };
+              my $candy_rect = 
+                $self->create_rectangle_for_cat( $cat, $x1, $y1);
+              my $param = $self->ungoodness( $candy_rect, $relatives );
+              if ($param < $least) {
+                $least = $param;
+                $low_pair = $candy;
+              }
+            }
+            $coords = $low_pair;
+          }
+   when (/^LAST_ONE$/)
       {
         $coords = $candidate_locations->[ -1 ]
         }
@@ -479,9 +523,10 @@ sub evaluate_candy {
 
 =item put_cat_in_place
 
-Given $cat href, an x & y location 
-puts an appropriate rectangle object in the object's @placed array, 
-and also updates the position in the layout table.
+Given $cat href and an x & y location this:
+
+ o  puts an appropriate rectangle object in the object's @placed array, 
+ o  updates the position in the layout table.
 
 Example usage:
 
@@ -527,138 +572,54 @@ sub put_cat_in_place {
 
 =item ungoodness
 
-Compute an "ungoodness" parameter for an association between two
-rectangles (Spots::Rectangle objects).  A "good" association is
-one that makes sense when doing a graphical layout.  At present,
-"ungoodness" is just the geometric center-to-center distance
-between the rectangles-- the smaller the better.
+Compute an "ungoodness" parameter for an association between a
+given rectangles and a list of rectangles.  Where a "good"
+association is one that makes sense when doing a graphical
+layout.  At present, "ungoodness" is related to the
+center-to-center distance between the rectangles, where smaller
+is better.
 
-Example use:
+Note that here a "rectangle" means a Spots::Rectangle object.
 
- $param = 
-   $self->ungoodness( $candidate_rectangle, $last_rectangle );
+Example usage:
 
-TODO 
+   my $param = $self->ungoodness( $candy_rect, $relatives );
 
-The second parameter is going to become optional (or more likely vestigial).
-
-Evaluating the candidate_rectangle is done by computing the distances 
-between it and the other already placed cats of the same metacat.
+At present: evaluating the candidate_rectangle is done by
+computing the distances between it and the other already placed
+cats in the $relatives.
 
 =cut
 
 sub ungoodness {
   my $self = shift;
-  my $r1 = shift;
-  my $r2 = shift;
-
-  my $mc = $r1->metacat;
-  my $placed = $self->placed;
-
-  say "WARNING: got no metacat info for this rect" unless $mc;
-
-  my @same_metacat;
-  { no warnings 'uninitialized';
-    @same_metacat = grep { $_->metacat == $mc } @{ $placed };
-  }
-
-  # TODO: vector summation?
-  my ($dist, $total);
-  foreach my $other ( @same_metacat ) {
-    $dist = $r1->distance( $other );
-    $total += $dist;
-  }
-  
-  # my $cat_name = $r1->{meta}->{cat_name};
-  # say "$cat_name of metacat: $mc has distance total: $total";
-
-  $dist = $total;
+  my $r1   = shift;
+  my $relatives = shift;
+#   # TODO: eventually, try doing a vector summation
+#   my ($dist, $total);
+#   foreach my $other ( @{ $relatives } ) {
+#     $dist = $r1->distance( $other );
+#     $total += $dist;
+#   }
+#   $dist = $total;
+  my $dist = $r1->distance_from_group( $relatives );
   return $dist;
 }
 
-
-
-=item check_placed
-
-Goes through the placed rectangles, looking for mistakes where
-two rectangles overlap.  Returns a copy of the report, 
-but if $DEBUG is on, it also reports directly to STDERR.
-
-Example usage:
-
-   my $report = $self->check_placed();
-
-=cut
-
-sub check_placed {
+sub ungoodness_pairdists {
   my $self = shift;
-  my $placed = shift || $self->placed;
+  my $r1   = shift;
+  my $relatives = shift;
 
-#   say "===\n";
-#   say Dumper( $placed );
-#   say "===\n";
-
-  my $report = 'check_placed, called on: ' . $self->placed_summary( $placed );
-
-  foreach my $i ( 0 .. $#{ $placed } ) { 
-    foreach my $j ( $i+1 .. $#{ $placed } ) { 
-      my $a = $placed->[ $i ];
-      my $b = $placed->[ $j ];
-
-      my $a_meta = $a->meta;
-      my $b_meta = $b->meta;
-
-      my $a_name = $a_meta->{cat_name};
-      my $a_id   = $a_meta->{cat};
-
-      my $b_name = $b_meta->{cat_name};
-      my $b_id   = $b_meta->{cat};
-
-      if( $a->is_overlapping( $b ) ) {  
-        # report the problem
-        my $a_coords = $a->coords;
-        my $b_coords = $b->coords;
-
-        my $mess;
-        $mess .= sprintf "%4d %13s: %d,%d  %d,%d\n", $a_id, $a_name, @{ $a_coords };
-        $mess .= sprintf "%4d %13s: %d,%d  %d,%d\n", $b_id, $b_name, @{ $b_coords };
-        ($DEBUG) && say STDERR $mess, "\n";
-        $report .= $mess;
-      }
-    }
+  # TODO: eventually, try doing a vector summation
+  my ($dist, $total);
+  foreach my $other ( @{ $relatives } ) {
+    $dist = $r1->distance( $other );
+    $total += $dist;
   }
-  return $report;
-}
 
-=item placed_summary
-
-Dumps a summary of an array of href-based objects to STDERR.
-Examines x1, y1, x2, y2, meta/cat, meta/cat_name, meta/metacat
-
-Also reports width=x2-x1, height=y2-y1.
-
-=cut
-
-sub placed_summary {
-  my $self = shift;
-  my $placed = shift || $self->placed;
-
-  my $count = scalar(@{ $placed });
-  my $class = ref( $placed->[0] );
-
-#  print STDERR "$count objects of $class\n";
-  my $report = "$count objects of $class\n";
-  foreach my $p ( @{ $placed } ) {
-    my ($x1, $y1, $x2, $y2, $meta) = ( $p->x1, $p->y1, $p->x2, $p->y2, $p->meta );
-    my ($cat, $cat_name, $metacat) = @{ $meta }{ 'cat', 'cat_name', 'metacat' };
-    my ($width, $height) = ( $x2-$x1, $y2-$y1 );
-    my $fmt = 
-      qq{%4d: %-10s mc:%-4d [%6.1f,%6.1f]  [%6.1f,%6.1f]  %6.1f x %-6.1f \n};
-    $report .= sprintf $fmt, 
-      $cat, $cat_name, $metacat, $x1, $y1, $x2, $y2, $width, $height;
-  }
-  # print STDERR $report;
-  return $report;
+  $dist = $total;
+  return $dist;
 }
 
 
@@ -757,7 +718,6 @@ Example usage:
 
 =cut
 
-# VETTED_0602
 sub find_hole_for_cat_thataway {
   my $self      = shift;
   my $direction = shift; 
@@ -1039,6 +999,94 @@ sub candidate_dumper {
   }
   print STDERR '];', "\n";
 }
+
+
+
+=item check_placed
+
+Goes through the placed rectangles, looking for mistakes where
+two rectangles overlap.  Returns a copy of the report, 
+but if $DEBUG is on, it also reports directly to STDERR.
+
+Example usage:
+
+   my $report = $self->check_placed();
+
+=cut
+
+sub check_placed {
+  my $self = shift;
+  my $placed = shift || $self->placed;
+
+#   say "===\n";
+#   say Dumper( $placed );
+#   say "===\n";
+
+  my $report = 'check_placed, called on: ' . $self->placed_summary( $placed );
+
+  foreach my $i ( 0 .. $#{ $placed } ) { 
+    foreach my $j ( $i+1 .. $#{ $placed } ) { 
+      my $a = $placed->[ $i ];
+      my $b = $placed->[ $j ];
+
+      my $a_meta = $a->meta;
+      my $b_meta = $b->meta;
+
+      my $a_name = $a_meta->{cat_name};
+      my $a_id   = $a_meta->{cat};
+
+      my $b_name = $b_meta->{cat_name};
+      my $b_id   = $b_meta->{cat};
+
+      if( $a->is_overlapping( $b ) ) {  
+        # report the problem
+        my $a_coords = $a->coords;
+        my $b_coords = $b->coords;
+
+        my $mess;
+        $mess .= sprintf "%4d %13s: %d,%d  %d,%d\n", $a_id, $a_name, @{ $a_coords };
+        $mess .= sprintf "%4d %13s: %d,%d  %d,%d\n", $b_id, $b_name, @{ $b_coords };
+        ($DEBUG) && say STDERR $mess, "\n";
+        $report .= $mess;
+      }
+    }
+  }
+  return $report;
+}
+
+=item placed_summary
+
+Dumps a summary of an array of href-based objects to STDERR.
+Examines x1, y1, x2, y2, meta/cat, meta/cat_name, meta/metacat
+
+Also reports width=x2-x1, height=y2-y1.
+
+=cut
+
+sub placed_summary {
+  my $self = shift;
+  my $placed = shift || $self->placed;
+
+  my $count = scalar(@{ $placed });
+  my $class = ref( $placed->[0] );
+
+#  print STDERR "$count objects of $class\n";
+  my $report = "$count objects of $class\n";
+  foreach my $p ( @{ $placed } ) {
+    my ($x1, $y1, $x2, $y2, $meta) = ( $p->x1, $p->y1, $p->x2, $p->y2, $p->meta );
+    my ($cat, $cat_name, $metacat) = @{ $meta }{ 'cat', 'cat_name', 'metacat' };
+    my ($width, $height) = ( $x2-$x1, $y2-$y1 );
+    my $fmt = 
+      qq{%4d: %-10s mc:%-4d [%6.1f,%6.1f]  [%6.1f,%6.1f]  %6.1f x %-6.1f \n};
+    $report .= sprintf $fmt, 
+      $cat, $cat_name, $metacat, $x1, $y1, $x2, $y2, $width, $height;
+  }
+  # print STDERR $report;
+  return $report;
+}
+
+
+
 
 
 
