@@ -32,6 +32,7 @@ BEGIN {
 
 use lib ($test_lib);
 use Spots::Rectangle::TestData qw(:all);  # draw_placed
+use Spots::Rectangler;
 
 ok(1, "Traditional: If we made it this far, we're ok.");
 
@@ -59,7 +60,9 @@ mkpath( $output_directory ) unless -d $output_directory;
    my ($cat, $placed) = define_params();
    $obj->placed_summary( $placed );
 
-   draw_placed( $placed, $output_directory, "placed" );
+#   draw_placed( $placed, $output_directory, "placed" );
+   my $tangler = Spots::Rectangler->new();
+   $tangler->draw_placed( $placed, $output_directory, "placed" );  # creates a png in current directory
 
    # begins next door to a given start rectangle: 
    my ($x_trial, $y_trial) = ( 124, 0 );

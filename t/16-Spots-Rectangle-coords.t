@@ -52,13 +52,4 @@ ok(1, "Traditional: If we made it this far, we're ok.");
 
  }
 
-{ 
-   my $test_name = "Testing placed data structures";
-   is_deeply( $placed_grendel1, $placed_grendel1_raw, "$test_name: refactored form matches raw form" );
- }
-
-
-
-
-
 done_testing();

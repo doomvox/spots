@@ -1,23 +1,27 @@
 # Perl test file, can be run like so:
 #   perl 50-Spots-HomePage-generate_layout-metacats.t
 #          doom@kzsu.stanford.edu     2019/03/27 15:29:51
+#                                     2019/06/08
 
-# Variant of: 03-Spots-HomePage-generate_layout.t
-#             to test the new 'metacats' layout style
+# HISTORY
+# A variant of: 03-Spots-HomePage-generate_layout.t
+# Intended to test the new 'metacats' layout style
+# June 08, 2019: Now modified to test MetacatsFanout.
 
 use 5.10.0;
 use warnings;
 use strict;
 $|=1;
 my $DEBUG = 1;              # TODO set to 0 before ship
-use Data::Dumper;
+use Data::Dumper::Names;
 use File::Path      qw( mkpath );
 use File::Basename  qw( fileparse basename dirname );
 use File::Copy      qw( copy move );
 use Fatal           qw( open close mkpath copy move );
 use Cwd             qw( cwd abs_path );
-use Env             qw( HOME );
-use List::MoreUtils qw( any );
+use Env             qw( HOME USER );
+use List::Util      qw( first max maxstr min minstr reduce shuffle sum any );
+use List::MoreUtils qw( zip uniq );
 
 use Test::More;
 
@@ -58,67 +62,46 @@ ok(1, "Traditional: If we made it this far, we're ok.");
    my $sth = $dbh->prepare( $sql ); 
    $sth->execute();
    my $aref_of_href = $sth->fetchall_arrayref({});
-
    # say STDERR "aref_of_href: ", Dumper( $aref_of_href );
 
-   # Guessing that the current behavior is okay.
-   # Freeze it in place for now--  June 01, 2019
-#    my $expected = [
-#           {
-#             'id'         => 3,
-#             'y_location' => 20,
-#             'height'     => '9.1',
-#             'width'      => 108,
-#             'x_location' => 5,
-#             'category'   => 1,
-#           },
-#           {
-#             'id'         => 1,
-#             'y_location' => 0,
-#             'height'     => '9.1',
-#             'width'      => 108,
-#             'x_location' => 5,
-#             'category'   => 2,
-#           },
-#           {
-#             'id'         => 2,
-#             'y_location' => 10,
-#             'height'     => '3.9',
-#             'width'      => 108,
-#             'x_location' => 5,
-#             'category'   => 3,
-#           }
-#         ];
+   is( scalar( @{ $aref_of_href } ), 3 , "$test_name: placed 3 cats" );
+   
+   my @ids =  sort map{ $_->{id} } @{ $aref_of_href };
+   is_deeply( \@ids, [ 1, 2, 3 ], "$test_name: three cat ids, 1, 2, 3");
 
-# And again, Wed  June 05, 2019  00:50  fandango
+   my $total_height = sum( map{ $_->{height} } @{ $aref_of_href } );
+   say "total_height: $total_height";
+   my $expected_height = 9.24 + 9.24 + 3.96;
+   cmp_ok( $total_height, '>', ($expected_height - 0.5) );
+
+   # Guessing that the current behavior is okay.
+   # Freeze it in place for now--  June 06, 2019:
    my $expected = [
           {
-            'x_location' => 5,
-            'width' => 108,
-            'id' => 3,
-            'category' => 1,
-            'height' => '11.2',
-            'y_location' => 22
-          },
-          {
-            'y_location' => 0,
-            'category' => 2,
-            'height' => '11.2',
             'id' => 1,
-            'width' => 108,
-            'x_location' => 5
+            'category' => 1,
+            'width' => 90,
+            'height' => '9.24',
+            'x_location' => 4,
+            'y_location' => 0,
           },
           {
-            'x_location' => 5,
-            'width' => 108,
             'id' => 2,
+            'category' => 2,
+            'width' => 90,
+            'height' => '9.24',
+            'x_location' => 4,
+            'y_location' => 10,
+          },
+          {
+            'id' => 3,
             'category' => 3,
-            'height' => '4.8',
-            'y_location' => 12
+            'width' => 90,
+            'height' => '3.96',
+            'x_location' => 4,
+            'y_location' => 19,
           }
         ];
-
-
    is_deeply( $aref_of_href, $expected, "$test_name: placed three cats in a column" );
 
 #    # break down

@@ -59,6 +59,8 @@ ok(1, "Traditional: If we made it this far, we're ok.");
    ok( -e $output_html, "$test_name: html file created" );
    ok( -e $output_css,  "$test_name: css file created" );
 
+#  TODO 
+
 #    # check coordinate cols: loaded with expected data?
 #    my $cat_id = 33;
 #    my ($cat_spots, $spot_count, $x, $y, $w, $h) = 

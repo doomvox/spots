@@ -78,9 +78,9 @@ say Dumper( \@over_cats ) if @over_cats;
 # TODO rethink:
 ## my $base             = shift || "mah_moz_ohm";
 my $base             =  "mah_moz_ohm";
-my $runny = 'LatexLucy';
-# my $output_directory = shift || "/home/doom/End/Cave/Spots/Output/$runny"; 
-my $output_directory = "/home/doom/End/Cave/Spots/Output/$runny"; 
+my $monster = 'Akkorokamui';
+# my $output_directory = shift || "/home/doom/End/Cave/Spots/Output/$monster"; 
+my $output_directory = "/home/doom/End/Cave/Spots/Output/$monster"; 
 
 mkpath( $output_directory ) unless -d $output_directory;
 
@@ -99,7 +99,7 @@ my $obj = Spots::HomePage::Layout::MetacatsFanout->new(
 
 # my $style;
 # $style     = 'metacats_fanout',
-# say "Doing a $style run in $runny";
+# say "Doing a $style run in $monster";
 # $obj->generate_layout( $style );
 
 $obj->clear_layout;

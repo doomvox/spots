@@ -118,7 +118,6 @@ has x2 => ( is => 'ro', isa => Num, lazy => 1, builder=>'build_x2' );
 has y2 => ( is => 'ro', isa => Num, lazy => 1, builder=>'build_y2' );
 
 our $Y_WEIGHT = 6.5;  # 1  12  6  8  9    8.5  10 
-# has y_weight => ( is => 'ro', isa => Int, default => 10 );  # 1 rem =~ 10 px , used by "distance" calculation
 has y_weight => ( is => 'ro', isa => Num, default => $Y_WEIGHT );  # comparing rem to px
 
 has center => ( is => 'ro', isa => ArrayRef, lazy => 1, builder=>'calculate_center' ); 
@@ -370,12 +369,17 @@ sub distance_from_group_and_origin {
 
 =item is_overlapping
 
-The non-overlap condition for two grid-aligned rectangles
+This checks whether two rectangles *don't* overlap, and then 
+does a logical not on the result.  
 
-       (Ax1 < Bx1  && Ax2 < Bx2)  
-   ||  (Ax1 > Bx1  && Ax2 > Bx2)                         
-   ||  (Ay1 < By1  && Ay2 < By2)  
-   ||  (Ay1 > By1  && Ay2 > By2)                         
+The non-overlap condition for two grid-aligned rectangles:
+
+  my $non_overlap = 
+    ($by1 > $ay2) || ($bx1 > $ax2) || ($bx2 < $ax1) || ($by2 < $ay1);
+
+(Note, point 1 is always the upper-left and point 2 the lower-right-- 
+which is typically generated from the first point using the width 
+and height.)
 
 =cut
 
@@ -393,12 +397,6 @@ sub is_overlapping {
   my $bx2 = $b->x2;
   my $by2 = $b->y2;
 
-#   my $non_overlap = 
-#      ($ax1 < $bx1  && $ax2 < $bx2)
-#   || ($ax1 > $bx1  && $ax2 > $bx2)
-#   || ($ay1 < $by1  && $ay2 < $by2)
-#   || ($ay1 > $by1  && $ay2 > $by2);
-
   my $non_overlap = 
     ($by1 > $ay2) || ($bx1 > $ax2) || ($bx2 < $ax1) || ($by2 < $ay1);
 
@@ -408,13 +406,6 @@ sub is_overlapping {
 
 
 =item is_overlapping_LAME
-
-The non-overlap condition for two grid-aligned rectangles
-
-       (Ax1 < Bx1  && Ax2 < Bx2)  
-   ||  (Ax1 > Bx1  && Ax2 > Bx2)                         
-   ||  (Ay1 < By1  && Ay2 < By2)  
-   ||  (Ay1 > By1  && Ay2 > By2)                         
 
 =cut
 

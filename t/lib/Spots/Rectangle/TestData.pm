@@ -333,7 +333,6 @@ a simple test to verify the data is unchanged:
 =cut
 
 sub generate_placed_grendel1 {
-
   my $placed_grendel1 = [
             bless( {
                      'x1' => 5,
@@ -416,7 +415,7 @@ sub generate_placed_grendel1 {
 }
 
 
-
+# raw dump, provide to compare with the rearranged version above
 sub generate_placed_raw {
   my $placed_grendel1_raw = [
             bless( {

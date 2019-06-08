@@ -7,7 +7,7 @@ use warnings;
 use strict;
 $|=1;
 my $DEBUG = 1;              # TODO set to 0 before ship
-use Data::Dumper;
+use Data::Dumper::Names;
 use File::Path      qw( mkpath );
 use File::Basename  qw( fileparse basename dirname );
 use File::Copy      qw( copy move );
@@ -71,7 +71,8 @@ ok(1, "Traditional: If we made it this far, we're ok.");
    my @expected_cat_4_fields = ( 'coords', 'meta', 'y_weight', );
    is_deeply( \@cat_4_fields, \@expected_cat_4_fields, "Testing cat 4: no x/y fields yet");
 
-   ok ( not( $a->is_overlapping( $b ) ) , "Testing is_overlapping: overlap found on problem case: cat id 2 & 4" );
+   ok ( $a->is_overlapping( $b ) ,
+        "Testing is_overlapping: overlap found on problem case: cat id 2 & 4" ); 
 
    @cat_4_fields = sort keys( %{ $b } );
    @expected_cat_4_fields = sort ( 'coords', 'meta', 'y_weight', 'x1', 'x2', 'y1', 'y2', );
@@ -157,11 +158,14 @@ sub check_placed_isoverlapping_unrolled {
       my( $ax1, $ay1, $ax2, $ay2 ) = ( $a->x1, $a->y1, $a->x2,  $a->y2 );
       my( $bx1, $by1, $bx2, $by2 ) = ( $b->x1, $b->y1, $b->x2,  $b->y2 );
 
+#       my $non_overlap = 
+#         ($ax1 < $bx1  && $ax2 < $bx2)
+#         || ($ax1 > $bx1  && $ax2 > $bx2)
+#         || ($ay1 < $by1  && $ay2 < $by2)
+#         || ($ay1 > $by1  && $ay2 > $by2);
+
       my $non_overlap = 
-        ($ax1 < $bx1  && $ax2 < $bx2)
-        || ($ax1 > $bx1  && $ax2 > $bx2)
-        || ($ay1 < $by1  && $ay2 < $by2)
-        || ($ay1 > $by1  && $ay2 > $by2);
+        ($by1 > $ay2) || ($bx1 > $ax2) || ($bx2 < $ax1) || ($by2 < $ay1);
 
       my $overlap = not( $non_overlap );
 

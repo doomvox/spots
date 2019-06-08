@@ -26,13 +26,12 @@ my $DEBUG = 1;
 
 =head1 DESCRIPTION
 
-Spots::Rectangler is a module that that manages a bunch of Spots::Rectangle objects.
+Spots::Rectangler is a module that that works with lists of Spots::Rectangle objects.
 
 (As of this writing, it just has a routine to draw diagrams of an array of them.)
 
 Note; there is also a draw_cases routine for diagramming pairs of rectangles
 which is still in Spots::Rectangle::TestData located in the project's t/lib.
-
 
 =head1 METHODS
 
@@ -93,6 +92,9 @@ Because you often want to scale-up when plotting rectangles: default 1.5.
 has canvas_width  => ( is => 'rw', isa => Num, default => 1800 );
 has canvas_height => ( is => 'rw', isa => Num, default => 900 );
 has scale         => ( is => 'rw', isa => Num, default => 1.5 );
+
+# An idea to add type checking-- but what would work as a default/builder?
+# has rectangles    => ( is => 'rw', isa => ArrayRef[InstanceOf['Spots::Rectangle']], default => sub { ... } );
 
 =item draw_placed
 

@@ -1,11 +1,6 @@
 # Perl test file, can be run like so:
-#   perl 22-Spots-HomePage-generate_layout_metacats_fanout.t
+#   perl 52-Spots-HomePage-generate_layout_metacats_fanout.t
 #          doom@kzsu.stanford.edu     2019/04/15 05:12:01
-
-# STATUS: May 31, 2019  ported over the new 42-*.t style of 
-# independent DATABASE set-up, now this is failing because
-# "fill_in_cat" is ill-conceived: new Category class not rolled
-# out yet. 
 
 use 5.10.0;
 use warnings;
@@ -28,9 +23,11 @@ BEGIN {
   use FindBin qw($Bin);
   use lib ("$Bin/../lib/");
   use_ok( 'Spots::HomePage' , );
+  use_ok( 'Spots::HomePage::Layout::MetacatsFanout' , );
   use lib ("$Bin/lib/");
   use_ok( 'Spots::Test::DB::Init' , );
   use_ok( 'Spots::DB::Handle' , );
+  use_ok( 'Spots::HomePage::Generate', );
 }
 
 ok(1, "Traditional: If we made it this far, we're ok.");
@@ -70,11 +67,21 @@ ok(1, "Traditional: If we made it this far, we're ok.");
    my $expected_cat_count = 3;
 
    my ($dbh, $sth);
-   my $obj = Spots::HomePage->new(
+
+# TODO someday, this old interface might be repaired:
+#    my $obj = Spots::HomePage->new(
+#                                output_basename  => $tNN,
+#                                output_directory => $out_loc,
+#                                db_database_name => $dbname,
+#                        );
+
+   my $obj = Spots::HomePage::Layout::MetacatsFanout->new(
                                output_basename  => $tNN,
                                output_directory => $out_loc,
-                               db_database_name => $dbname,
-                       );
+                               dbname => $dbname,
+                        );
+
+
 
    my $check_cat_skull = qq{ select count(*) as cnt from category };
    $dbh = $obj->dbh;   
@@ -94,7 +101,13 @@ ok(1, "Traditional: If we made it this far, we're ok.");
    my $style     = 'metacats_fanout';
    $obj->generate_layout( $style );
 
-   $obj->html_css_from_layout();
+   my $genner =
+     Spots::HomePage::Generate->new(
+                               output_basename  => $tNN,
+                               output_directory => $out_loc,
+                             );
+
+   $genner->html_css_from_layout();
 
    ok( -e $expected_html_file, "$test_name: html file created" );
    ok( -e $expected_css_file,  "$test_name: css file created" );
@@ -121,8 +134,7 @@ ok(1, "Traditional: If we made it this far, we're ok.");
    }
 
    my $check_x = any { $_ > 5 } map{ $_->{ x_location } } @{ $layout };
-   ok( $check_x, "$test_name: not all x = 5" );
-### TODO rethink this-- yes, all x *are* equal to 5.  Why shouldn't they be?
+   ok( not( $check_x ), "$test_name: all x = 5 (for this small set)" );   # TODO BRITTLE?
 
    my $check_y = any { $_ > 0 } map{ $_->{ y_location } } @{ $layout };
    ok( $check_y, "$test_name: not all y = 0" );
