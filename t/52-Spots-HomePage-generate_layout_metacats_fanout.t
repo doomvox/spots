@@ -22,7 +22,7 @@ use Test::More;
 BEGIN {
   use FindBin qw($Bin);
   use lib ("$Bin/../lib/");
-  use_ok( 'Spots::HomePage' , );
+#  use_ok( 'Spots::HomePage' , );
   use_ok( 'Spots::HomePage::Layout::MetacatsFanout' , );
   use lib ("$Bin/lib/");
   use_ok( 'Spots::Test::DB::Init' , );

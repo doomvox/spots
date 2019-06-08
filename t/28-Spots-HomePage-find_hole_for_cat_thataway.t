@@ -25,8 +25,8 @@ our $test_lib;
 BEGIN {
   use FindBin qw($Bin);
   use lib ("$Bin/../lib/");
-  our $class = 'Spots::HomePage';
-  use_ok( $class );
+#  use_ok( 'Spots::HomePage' );
+  use_ok( 'Spots::HomePage::Layout::MetacatsFanout' );
   $test_lib = "$Bin/lib/";
 }
 
@@ -51,7 +51,8 @@ mkpath( $output_directory ) unless -d $output_directory;
    
    my $base = "mah_moz_ohm";  # for 28-*.t, unused at present
    # TODO need way to reinitializing the spots_test db to known state 
-   my $obj = Spots::HomePage->new(
+#   my $obj = Spots::HomePage->new(
+   my $obj = Spots::HomePage::Layout::MetacatsFanout->new(
                                output_basename  => $base,
                                output_directory => $output_directory,
                                db_database_name => 'spots_test',
@@ -102,7 +103,8 @@ mkpath( $output_directory ) unless -d $output_directory;
    mkpath( $output_directory ) unless -d $output_directory;
 
    # TODO need way to reinitializing the spots_test db to known state 
-   my $obj = Spots::HomePage->new(
+#   my $obj = Spots::HomePage->new(
+   my $obj = Spots::HomePage::Layout::MetacatsFanout->new(
                                output_basename  => $base,
                                output_directory => $output_directory,
                                db_database_name => 'spots_test',
@@ -141,112 +143,115 @@ Example usage:
 =cut
 
 sub define_params {
+  my $spots = [
+    {
+        'label'   => 'transbay',
+        'url'     => 'http://www.transbaycalendar.org/',
+        'metacat' => 2,
+        'id'      => 42
+    },
+    {
+        'url'     => 'http://grayarea.org/events/',
+        'label'   => 'grayarea',
+        'metacat' => 2,
+        'id'      => 43
+    },
+    {
+        'id'      => 44,
+        'metacat' => 2,
+        'label'   => 'thechapel',
+        'url'     => 'http://www.thechapelsf.com/'
+    },
+    {
+        'id'      => 46,
+        'metacat' => 2,
+        'label'   => 'dna',
+        'url'     => 'https://www.dnalounge.com/'
+    },
+    {
+        'url'     => 'http://www.thenewparkway.com/?page_id=13',
+        'label'   => 'newparkway',
+        'id'      => 2,
+        'metacat' => 2
+    },
+    {
+        'label'   => 'funcheap',
+        'url'     => 'http://sf.funcheap.com/',
+        'metacat' => 2,
+        'id'      => 38
+    },
+    {
+        'id'      => 188,
+        'metacat' => 2,
+        'url'     => 'https://www.indybay.org/',
+        'label'   => 'indybay'
+    },
+    {
+        'id'      => 197,
+        'metacat' => 2,
+        'label'   => 'sfindy',
+        'url'     => 'http://sf.indymedia.org/'
+    },
+    {
+        'url'     => 'http://www.spacecowboys.org/',
+        'label'   => 'spacecow',
+        'metacat' => 2,
+        'id'      => 340
+    },
+    {
+        'id'      => 344,
+        'metacat' => 2,
+        'url'     => 'http://laughingsquid.com/squidlist/events/',
+        'label'   => 'squid'
+    },
+    {
+        'metacat' => 2,
+        'id'      => 357,
+        'label'   => '21grand',
+        'url'     => 'http://www.21grand.org/wpress/index.php?s=award'
+    },
+    {
+        'id'      => 361,
+        'metacat' => 2,
+        'label'   => 'caferoyale',
+        'url'     => 'http://www.caferoyale-sf.com/home.shtml'
+    },
+    {
+        'url'     => 'http://thrillpeddlers.com/',
+        'label'   => 'thrillped',
+        'id'      => 350,
+        'metacat' => 2
+    },
+    {
+        'label'   => 'anarchy',
+        'url'     => 'http://bayareaanarchistbookfair.com/',
+        'metacat' => 2,
+        'id'      => 307
+    },
+    {
+        'url'     => 'http://www.sfheart.com/ArtPoetryEvents.html',
+        'label'   => 'poets',
+        'id'      => 317,
+        'metacat' => 2
+    }
+  ];
+
    # from in-situ dumps of code (as of May 16, 2019)
-   my $cat = {
-          'spots' => [
-                       {
-                         'label' => 'transbay',
-                         'url' => 'http://www.transbaycalendar.org/',
-                         'metacat' => 2,
-                         'id' => 42
-                       },
-                       {
-                         'url' => 'http://grayarea.org/events/',
-                         'label' => 'grayarea',
-                         'metacat' => 2,
-                         'id' => 43
-                       },
-                       {
-                         'id' => 44,
-                         'metacat' => 2,
-                         'label' => 'thechapel',
-                         'url' => 'http://www.thechapelsf.com/'
-                       },
-                       {
-                         'id' => 46,
-                         'metacat' => 2,
-                         'label' => 'dna',
-                         'url' => 'https://www.dnalounge.com/'
-                       },
-                       {
-                         'url' => 'http://www.thenewparkway.com/?page_id=13',
-                         'label' => 'newparkway',
-                         'id' => 2,
-                         'metacat' => 2
-                       },
-                       {
-                         'label' => 'funcheap',
-                         'url' => 'http://sf.funcheap.com/',
-                         'metacat' => 2,
-                         'id' => 38
-                       },
-                       {
-                         'id' => 188,
-                         'metacat' => 2,
-                         'url' => 'https://www.indybay.org/',
-                         'label' => 'indybay'
-                       },
-                       {
-                         'id' => 197,
-                         'metacat' => 2,
-                         'label' => 'sfindy',
-                         'url' => 'http://sf.indymedia.org/'
-                       },
-                       {
-                         'url' => 'http://www.spacecowboys.org/',
-                         'label' => 'spacecow',
-                         'metacat' => 2,
-                         'id' => 340
-                       },
-                       {
-                         'id' => 344,
-                         'metacat' => 2,
-                         'url' => 'http://laughingsquid.com/squidlist/events/',
-                         'label' => 'squid'
-                       },
-                       {
-                         'metacat' => 2,
-                         'id' => 357,
-                         'label' => '21grand',
-                         'url' => 'http://www.21grand.org/wpress/index.php?s=award'
-                       },
-                       {
-                         'id' => 361,
-                         'metacat' => 2,
-                         'label' => 'caferoyale',
-                         'url' => 'http://www.caferoyale-sf.com/home.shtml'
-                       },
-                       {
-                         'url' => 'http://thrillpeddlers.com/',
-                         'label' => 'thrillped',
-                         'id' => 350,
-                         'metacat' => 2
-                       },
-                       {
-                         'label' => 'anarchy',
-                         'url' => 'http://bayareaanarchistbookfair.com/',
-                         'metacat' => 2,
-                         'id' => 307
-                       },
-                       {
-                         'url' => 'http://www.sfheart.com/ArtPoetryEvents.html',
-                         'label' => 'poets',
-                         'id' => 317,
-                         'metacat' => 2
-                       }
-                     ],
-          'y' => 2,
-          'id' => 6,
-          'name' => 'events',
-          'width' => 130,
-          'x' => 5,
-          'height' => '21.5',
-          'cnt' => '15',
-          'mc_name' => 'local',
-          'spot_count' => 15,
-          'metacat' => 2,
-          'mc_ord' => '0020'
-        }; 
+   my $cat = bless( {
+                      'id'         => 6,
+                      'name'       => 'events',
+                      'x_location' => 5,
+                      'y_location' => 2,
+                      'width'      => 130,
+                      'height'     => '21.5',
+                      'metacat_id'    => 2,
+                      'metacat_name'    => 'local',
+                      'spots'      => $spots,
+                      'cnt'        => '15',
+                      'spot_count' => 15,
+                      'metacat_sortcode'     => '0020'
+                     }, 'Spots::Category' );
+
    my $placed = [
           bless( {
                    'y_weight' => 1,

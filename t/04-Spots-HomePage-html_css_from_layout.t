@@ -2,6 +2,10 @@
 #   perl 04-Spots-HomePage-html_css_from_layout.t
 #          doom@kzsu.stanford.edu     2019/03/27 18:46:04
 
+# TODO STATUS
+# Really needs to use an independent pg database,
+# and really needs more extensive test of html/css generation
+
 use 5.10.0;
 use warnings;
 use strict;
@@ -21,7 +25,8 @@ use Test::More;
 BEGIN {
   use FindBin qw($Bin);
   use lib ("$Bin/../lib/");
-  use_ok( 'Spots::HomePage' , )
+#  use_ok( 'Spots::HomePage' , )
+  use_ok( 'Spots::HomePage::Generate', );
 }
 
 ok(1, "Traditional: If we made it this far, we're ok.");
@@ -47,7 +52,8 @@ ok(1, "Traditional: If we made it this far, we're ok.");
 #    say STDERR "*.t uses output_html: $output_html";
 #    say STDERR "*.t uses output_css: $output_css";
 
-   my $obj = Spots::HomePage->new(
+#    my $obj = Spots::HomePage->new(
+    my $obj = Spots::HomePage::Generate->new(
                                    output_basename  => $base,
                                    output_directory => $output_directory,
                                    db_database_name => 'spots_test',

@@ -21,7 +21,8 @@ use Test::More;
 BEGIN {
   use FindBin qw($Bin);
   use lib ("$Bin/../lib/");
-  use_ok( 'Spots::HomePage'  );
+#  use_ok( 'Spots::HomePage'  );
+  use_ok( 'Spots::HomePage::Layout::MetacatsFanout'  );
 }
 
 ok(1, "Traditional: If we made it this far, we're ok.");
@@ -31,7 +32,8 @@ ok(1, "Traditional: If we made it this far, we're ok.");
 {  my $subname = "builder_db_connection";
    my $test_name = "Testing $subname";
 
-   my $obj = Spots::HomePage->new();
+#   my $obj = Spots::HomePage->new();
+   my $obj = Spots::HomePage::Layout::MetacatsFanout->new();
    my $dbh = $obj->builder_db_connection();
 
    is( ref $dbh, 'DBI::db', "$test_name: returned correct type" );
