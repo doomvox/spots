@@ -236,77 +236,70 @@ sub define_params {
     }
   ];
 
-   # from in-situ dumps of code (as of May 16, 2019)
-   my $cat = bless( {
-                      'id'         => 6,
-                      'name'       => 'events',
-                      'x_location' => 5,
-                      'y_location' => 2,
-                      'width'      => 130,
-                      'height'     => '21.5',
-                      'metacat_id'    => 2,
-                      'metacat_name'    => 'local',
-                      'spots'      => $spots,
-                      'cnt'        => '15',
-                      'spot_count' => 15,
-                      'metacat_sortcode'     => '0020'
+  my $cat = bless( {
+                      'id'               => 6,
+                      'name'             => 'events',
+                      'x_location'       => 5,
+                      'y_location'       => 2,
+                      'width'            => 130,
+                      'height'           => '21.5',
+                      'metacat_id'       => 2,
+                      'metacat_name'     => 'local',
+                      'spots'            => $spots,
+                      'cnt'              => '15',
+                      'spot_count'       => 15,
+                      'metacat_sortcode' => '0020'
                      }, 'Spots::Category' );
 
-   my $placed = [
-          bless( {
-                   'y_weight' => 1,
-                   'coords' => [
-                                 5,
-                                 0,
-                                 123,
-                                 '11.1'
-                               ],
-                   'y1' => 0,
-                   'y2' => '11.1',
-                   'meta' => {
-                               'metacat_name' => 'local',
-                               'cat' => 1,
-                               'cat_name' => 'oakland',
-                               'metacat' => 2
-                             },
-                   'x1' => 5,
-                   'x2' => 123
-                 }, 'Spots::Rectangle' ),
-          bless( {
-                   'meta' => {
-                               'metacat_name' => 'local',
-                               'cat' => 2,
-                               'cat_name' => 'sf',
-                               'metacat' => 2
-                             },
-                   'x1' => 5,
-                   'x2' => 123,
-                   'y_weight' => 1,
-                   'coords' => [
-                                 5,
-                                 '12.1',
-                                 123,
-                                 '23.2'
-                               ],
-                   'y1' => '12.1',
-                   'y2' => '23.2'
-                 }, 'Spots::Rectangle' ),
-          bless( {
-                   'meta' => {
-                               'metacat_name' => 'local',
-                               'cat_name' => 'weather',
-                               'cat' => 5,
-                               'metacat' => 2
-                             },
-                   'y_weight' => 1,
-                   'coords' => [
-                                 5,
-                                 '24.2',
-                                 183,
-                                 '28.8'
-                               ]
-                 }, 'Spots::Rectangle' )
-                ];
+  my $placed = [
+    bless(
+        {
+            'y_weight' => 1,
+            'coords'   => [ 5, 0, 123, '11.1' ],
+            'y1'       => 0,
+            'y2'       => '11.1',
+            'meta'     => {
+                'metacat_name' => 'local',
+                'cat'          => 1,
+                'cat_name'     => 'oakland',
+                'metacat'      => 2
+            },
+            'x1' => 5,
+            'x2' => 123
+        },
+        'Spots::Rectangle'
+    ),
+    bless(
+        {
+            'meta' => {
+                'metacat_name' => 'local',
+                'cat'          => 2,
+                'cat_name'     => 'sf',
+                'metacat'      => 2
+            },
+            'x1'       => 5,
+            'x2'       => 123,
+            'y_weight' => 1,
+            'coords'   => [ 5, '12.1', 123, '23.2' ],
+            'y1'       => '12.1',
+            'y2'       => '23.2'
+        },
+        'Spots::Rectangle'
+    ),
+    bless(
+        {
+            'meta' => {
+                'metacat_name' => 'local',
+                'cat_name'     => 'weather',
+                'cat'          => 5,
+                'metacat'      => 2
+            },
+            'y_weight' => 1,
+            'coords'   => [ 5, '24.2', 183, '28.8' ]
+        },
+        'Spots::Rectangle'
+    )
+  ];
 
   return( $cat, $placed );
 }

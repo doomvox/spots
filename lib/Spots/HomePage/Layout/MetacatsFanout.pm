@@ -292,11 +292,14 @@ sub generate_layout_metacats_fanout {
     croak "Sadly, we have no cats, we can not 'generate_layout_metacats_fanout'";
   }
 
+  # TODO why not do this here, rather than in generate_homepage.pl?
+  #   $obj->clear_layout;
+
   # initialize $placed array: place the first cat in upper-left
   $self->clear_placed;
   my ($x1, $y1) = ($self->initial_x, $self->initial_y);
   my $cat = shift @{ $cats };  
-  $self->put_cat_in_place( $cat, $x1, $y1 );   # $cat is now a Category object TODO...
+  $self->put_cat_in_place( $cat, $x1, $y1 );   
  CAT:
   foreach my $cat ( @{ $cats } ) { 
 #    my $cat_spots = $self->count_cat_spots( $cat ); # implicit fill_in_cat
@@ -400,7 +403,8 @@ sub find_place_for_cat {
   
 #  my $coords = $self->evaluate_candy( 'LAST_ONE', $candidate_locations ); # STUB  Fishhook
 #  my $coords = $self->evaluate_candy( 'THREE_CYCLE', $candidate_locations ); # STUB  JohnGalt
-  my $coords = $self->evaluate_candy( 'THROAT', $candidate_locations, $relatives, $cat ); # STUB  PaleBrownThing
+#  my $coords = $self->evaluate_candy( 'THROAT', $candidate_locations, $relatives, $cat ); # STUB  PaleBrownThing
+  my $coords = $self->evaluate_candy( 'THROAT', $candidate_locations, $relatives, $cat ); # STUB  Akkorokamui
   my ( $x1, $y1 ) = @{ $coords } if $coords;
 
   $self->farewell();
@@ -462,7 +466,7 @@ sub evaluate_candy {
   given( $evaluation_method ) {
     when (/^THROAT$/)
           { my $low_pair;
-            my $least = 10000000;
+            my $least = 10000000;  # initialize big, result has to be smaller
             foreach my $candy ( @{ $candidate_locations } ) {
               my ($x1, $y1) = @{ $candy };
               my $candy_rect = 
@@ -599,21 +603,21 @@ sub ungoodness {
   return $dist;
 }
 
-# Older style
-sub ungoodness_pairdists {
-  my $self = shift;
-  my $r1   = shift;
-  my $relatives = shift;
+# # Older style
+# sub ungoodness_pairdists {
+#   my $self = shift;
+#   my $r1   = shift;
+#   my $relatives = shift;
 
-  # TODO: eventually, try doing a vector summation
-  my ($dist, $total);
-  foreach my $other ( @{ $relatives } ) {
-    $dist = $r1->distance( $other );
-    $total += $dist;
-  }
-  $dist = $total;
-  return $dist;
-}
+#   # TODO: eventually, try doing a vector summation
+#   my ($dist, $total);
+#   foreach my $other ( @{ $relatives } ) {
+#     $dist = $r1->distance( $other );
+#     $total += $dist;
+#   }
+#   $dist = $total;
+#   return $dist;
+# }
 
 
 
@@ -640,7 +644,6 @@ TODO  Ideally, better locations should be stuck closer to
 
 =cut
 
-# VETTED_0602
 sub look_all_around_given_rectangles {
   my $self = shift;
   my $start_rects = shift;
@@ -649,9 +652,6 @@ sub look_all_around_given_rectangles {
 
   my ($width, $height) = ($cat->width, $cat->height);
 
-### TODO px vs rem? 
-#   my $inc_x = 1; 
-#   my $inc_y = 1; 
   my $inc_x = 4;
   my $inc_y = 0.5;
 
@@ -824,20 +824,20 @@ sub position_out_of_bounds {
 
 
 
-=item initialize_layout_table_with_cats
+# =item initialize_layout_table_with_cats
 
-As currently written, the layout table needs to be initialized
-with all the category.id values.  (Hack, hack.)
+# As currently written, the layout table needs to be initialized
+# with all the category.id values.  (Hack, hack.)
 
-=cut
+# =cut
 
-sub initialize_layout_table_with_cats {
-  my $self = shift;
-  my $dbh = $self->dbh;
-  my $sql =
-    qq{ INSERT INTO layout (category) SELECT id FROM category };
-  $dbh->do( $sql );
-}
+# sub initialize_layout_table_with_cats {
+#   my $self = shift;
+#   my $dbh = $self->dbh;
+#   my $sql =
+#     qq{ INSERT INTO layout (category) SELECT id FROM category };
+#   $dbh->do( $sql );
+# }
 
 
 =item update_layout_for_cat
@@ -850,6 +850,7 @@ Example usage:
 
 =cut
 
+# Used by put_cat_in_place
 sub update_layout_for_cat {
   my $self   = shift;
   my $cat    = shift;
@@ -876,19 +877,19 @@ sub update_layout_for_cat {
   return;
 }
 
-=item sql_to_update_height_width
+# =item sql_to_update_height_width
 
-  my $sql_update = $self->sql_to_update_height_width()
+#   my $sql_update = $self->sql_to_update_height_width()
 
-=cut
+# =cut
 
-sub sql_to_update_height_width {
-  my $self       = shift;
-  my $update_sql =<<"__END_SKULL_UHW";
-    UPDATE layout SET width = ?, height = ? WHERE category = ?
-__END_SKULL_UHW
-  return $update_sql;
-}
+# sub sql_to_update_height_width {
+#   my $self       = shift;
+#   my $update_sql =<<"__END_SKULL_UHW";
+#     UPDATE layout SET width = ?, height = ? WHERE category = ?
+# __END_SKULL_UHW
+#   return $update_sql;
+# }
 
 =item sql_to_update_layout
 
