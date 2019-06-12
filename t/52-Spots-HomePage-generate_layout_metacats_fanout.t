@@ -24,10 +24,10 @@ BEGIN {
   use lib ("$Bin/../lib/");
 #  use_ok( 'Spots::HomePage' , );
   use_ok( 'Spots::HomePage::Layout::MetacatsFanout' , );
-  use lib ("$Bin/lib/");
-  use_ok( 'Spots::Test::DB::Init' , );
   use_ok( 'Spots::DB::Handle' , );
   use_ok( 'Spots::HomePage::Generate', );
+  use lib ("$Bin/lib/");
+  use_ok( 'Spots::Test::DB::Init' , );
 }
 
 ok(1, "Traditional: If we made it this far, we're ok.");
@@ -81,8 +81,6 @@ ok(1, "Traditional: If we made it this far, we're ok.");
                                dbname => $dbname,
                         );
 
-
-
    my $check_cat_skull = qq{ select count(*) as cnt from category };
    $dbh = $obj->dbh;   
    $sth = $dbh->prepare( $check_cat_skull );
@@ -92,19 +90,20 @@ ok(1, "Traditional: If we made it this far, we're ok.");
    is( $cat_count, $expected_cat_count,
        "Testing that category table has restricted number of rows: $expected_cat_count" );
 
-   # TODO BOOKMARK  the following will need revision for new HomePage.pm
-   #                  -- Fri  May 31, 2019  07:40  fandango
-
    # wipe the coordinate columns in the layout table
    $obj->clear_layout;
 
    my $style     = 'metacats_fanout';
    $obj->generate_layout( $style );
 
+#   my $placed = $obj->placed;
+#   say "~~~~!!! placed: ", Dumper( $placed );
+
    my $genner =
      Spots::HomePage::Generate->new(
                                output_basename  => $tNN,
                                output_directory => $out_loc,
+                               dbname           => $dbname,
                              );
 
    $genner->html_css_from_layout();
@@ -138,7 +137,6 @@ ok(1, "Traditional: If we made it this far, we're ok.");
 
    my $check_y = any { $_ > 0 } map{ $_->{ y_location } } @{ $layout };
    ok( $check_y, "$test_name: not all y = 0" );
-
 
  }
 

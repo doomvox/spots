@@ -48,6 +48,8 @@ use List::Util      qw( first max maxstr min minstr reduce shuffle sum any );
 use List::MoreUtils qw( zip uniq );
 use String::ShellQuote qw( shell_quote_best_effort );
 use DBI;
+
+use Spots::Config qw( $config );
 use Spots::Category;
 use Spots::DB::Handle;
 
@@ -66,13 +68,9 @@ to the names of the object attributes. These attributes are:
 
 =cut
 
-# Example attribute:
-# has is_loop => ( is => 'rw', isa => Int, default => 0 );
-# Tempted to use Mouse over Moo so I can do my usual "isa => 'Int'"
-
 { no warnings 'once'; $DB::single = 1; }
 
-has dbname    => (is => 'rw', isa => Str, default => 'spots' );
+has dbname    => (is => 'rw', isa => Str, default => $config->{ db_database_name } || 'spots' );
 
 has dbh       => (is => 'rw', isa => InstanceOf['DBI::db'], lazy=>1,
                          builder => 'builder_db_connection' );
@@ -128,25 +126,6 @@ sub builder_all_cats {
   return \@cats;
 }
 
-# =item builder_db_connection
-
-# =cut
-
-# sub builder_db_connection {
-#   my $self = shift;
-#   # TODO break-out more of these params as object fields
-#   # TODO add a secrets file to pull auth info from
-#   my $dbname = $self->dbname; # default 'spots'
-#   my $port = '5432';
-#   my $data_source = "dbi:Pg:dbname=$dbname;port=$port;";
-#   my $username = 'doom';
-#   my $auth = '';
-#   my %attr = (AutoCommit => 1, RaiseError => 1, PrintError => 0);
-#   my $dbh = DBI->connect($data_source, $username, $auth, \%attr);
-#   return $dbh;
-# }
-
-
 =item builder_db_connection
 
 =cut
@@ -164,8 +143,6 @@ sub builder_db_connection {
 Query to return cat ids with associated spot counts.
 
 This filters out cats without spots.
-
-(( TODO Q: is this the right place to do this? ))
 
 =cut
 
@@ -197,8 +174,6 @@ __END_ALL_CAT_SKULL
 Query to return cat ids with associated spot counts.
 
 This filters out cats without spots.
-
-(( TODO Q: is this the right place to do this? ))
 
 =cut
 
@@ -234,45 +209,6 @@ sub generate_sql_for_some_cat_ids {
 __END_SOME_CAT_SKULL
   return $sql;
 }
-
-
-
-
-
-
-
-# This might be used to create an array of Cats
-# without a query for each id:
-# then create each cat object with a pre-built cat_hash
-
-#       SELECT
-#         metacat.sortcode  AS mc_ord,
-#         metacat.name      AS mc_name, 
-#         metacat.id        AS metacat,
-#         category.id       AS id,
-#         category.name     AS name,
-#         count(*)          AS cnt
-#       FROM
-#         metacat, category, spots
-#       WHERE
-#         spots.category = category.id AND
-#         category.metacat = metacat.id 
-#       GROUP BY 
-#         metacat.sortcode,
-#         metacat.name,
-#         metacat.id,
-#         category.id,
-#         category.name
-#       ORDER BY 
-#         metacat.sortcode,
-#         metacat.name,
-#         metacat.id,
-#         category.id,
-#         category.name;
-
-
-
-
 
 =back
 

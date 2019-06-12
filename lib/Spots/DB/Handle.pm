@@ -48,6 +48,7 @@ use List::Util      qw( first max maxstr min minstr reduce shuffle sum any );
 use List::MoreUtils qw( zip uniq );
 use String::ShellQuote qw( shell_quote_best_effort );
 use DBI;
+use Spots::Config qw( $config );
 
 =item new
 
@@ -103,14 +104,14 @@ Main access method, use to get the shared dbh handle to be used by the entire pr
 
 has debug       => (is => 'rw', isa => Bool, default => sub{return ($DEBUG||0)});
 
-has dbname      => (is => 'rw', isa => Str, default => 'spots' );  
-has port        => (is => 'rw', isa => Str, default => '5432' );  
-has username    => (is => 'rw', isa => Str, default => $USER );  
-has auth        => (is => 'rw', isa => Str, default => '' );  
+has dbname      => (is => 'rw', isa => Str, default => $config->{ db_database_name } || 'spots' );  
+has port        => (is => 'rw', isa => Str, default => $config->{ port }             || '5432' );  
+has username    => (is => 'rw', isa => Str, default => $config->{ username }         || $USER );  
+has auth        => (is => 'rw', isa => Str, default => $config->{ auth }             || '' );  
 
-has autocommit  => (is => 'rw', isa => Bool, default => 1 );  
-has raise_error => (is => 'rw', isa => Bool, default => 1 );  
-has print_error => (is => 'rw', isa => Bool, default => 0 );  
+has autocommit  => (is => 'rw', isa => Bool, default => $config->{ autocommit }  || 1 );  
+has raise_error => (is => 'rw', isa => Bool, default => $config->{ raise_error } || 1 );  
+has print_error => (is => 'rw', isa => Bool, default => $config->{ print_error } || 0 );  
 
 has dbh         => (is => 'rw', isa => InstanceOf['DBI::db'], lazy => 1,
                     builder => 'builder_db_connection' );

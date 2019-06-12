@@ -18,17 +18,15 @@ use List::MoreUtils qw( any );
 
 use Test::More;
 
-our $test_lib;
+
 BEGIN {
   use FindBin qw($Bin);
   use lib ("$Bin/../lib/");
-  our $class = 'Spots::Rectangle';
-  use_ok( $class );
-  $test_lib = "$Bin/lib/";
+  use_ok( 'Spots::Rectangle' , );
+  use lib ("$Bin/lib");
+  use_ok( 'Spots::Rectangle::TestData', ':all' );
+      # @is_overlapping_cases
 }
-
-use lib ($test_lib);
-use Spots::Rectangle::TestData qw(:all);  # @is_overlapping_cases
 
 ok(1, "Traditional: If we made it this far, we're ok.");
 

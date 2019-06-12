@@ -26,12 +26,15 @@ my $DEBUG = 1;
 
 =head1 DESCRIPTION
 
-Spots::Rectangler is a module that that works with lists of Spots::Rectangle objects.
+Spots::Rectangler is a module that that works with lists of
+Spots::Rectangle objects.
 
-(As of this writing, it just has a routine to draw diagrams of an array of them.)
+(As of this writing, it just has a routine to draw diagrams of an
+array of them.)
 
-Note; there is also a draw_cases routine for diagramming pairs of rectangles
-which is still in Spots::Rectangle::TestData located in the project's t/lib.
+Note; there is also a draw_cases routine for diagramming pairs of
+rectangles which is still in Spots::Rectangle::TestData located
+in the project's t/lib.
 
 =head1 METHODS
 
@@ -54,6 +57,7 @@ use String::ShellQuote qw( shell_quote );
 
 use GD;
 
+use Spots::Config qw( $config );
 use Spots::Rectangle;
 use Spots::DB::Handle;
 use Spots::Category;
@@ -68,63 +72,81 @@ to the names of the object attributes. These attributes are:
 
 =over
 
-=item canvas_width   
+=item png_canvas_width   
 
 The width of generated png in px, default 1800
 
-=item canvas_height   
+=item png_canvas_height   
 
 The height of generated png in px, default 900.
 
-=item scale 
+=item png_x_scale,  png_y_scale
 
-Because you often want to scale-up when plotting rectangles: default 1.5.
+Because you often want to scale-up when plotting rectangles: 
+  defaults 1.5. and 1.5*3
+
+=item png_dwg_offset
+
+Need to offset the drawing from the top and left to leave 
+room for labels and such.  Default: 30.
+
+=item png_dwg_thickness
+
+Width of lines in px. Default: 3.
+
 
 =back
 
 =cut
 
-# Example attribute:
-# has is_loop => ( is => 'rw', isa => Int, default => 0 );
-
 { no warnings 'once'; $DB::single = 1; }
 
-has canvas_width  => ( is => 'rw', isa => Num, default => 1800 );
-has canvas_height => ( is => 'rw', isa => Num, default => 900 );
-has scale         => ( is => 'rw', isa => Num, default => 1.5 );
+has png_canvas_width  => ( is => 'rw', isa => Num, default => $config->{ png_canvas_width }  || 1800 );
+has png_canvas_height => ( is => 'rw', isa => Num, default => $config->{ png_canvas_height } || 900 );
+has png_x_scale       => ( is => 'rw', isa => Num, default => $config->{ png_x_scale }       || 1.5 );
+has png_y_scale       => ( is => 'rw', isa => Num, default => $config->{ png_y_scale }       || 1.5*3 );
+has png_dwg_offset    => ( is => 'rw', isa => Num, default => $config->{ png_dwg_offset }    || 30 );
+has png_dwg_thickness => ( is => 'rw', isa => Num, default => $config->{ png_dwg_thickness } || 3, );
 
-# An idea to add type checking-- but what would work as a default/builder?
+# TODO 
+# An idea to add type checking-- need a builder that creates an empty one?
+# routines like draw_placed would use this by default, then.
 # has rectangles    => ( is => 'rw', isa => ArrayRef[InstanceOf['Spots::Rectangle']], default => sub { ... } );
 
 =item draw_placed
 
-Spots::HomePage uses a datastructure (e.g. for "placed") that's 
-an array of Spots::Rectangle objects.  
+Spots::HomePage uses a datastructure (e.g. for "placed")
+that's an array of Spots::Rectangle objects.
 
 This is a routine to draw them, to facillitate debugging.
 
 Example usage:
 
-  draw_placed( $placed, $output_loc, $basename );
+  $tangler->draw_placed( $placed );  
+
+Alternately:
+
+  $tangler->draw_placed( $placed, $out_loc, 'placed' );  
 
 =cut
 
 sub draw_placed {
   my $self       = shift;
-  my $rects      = shift;
-  my $output_loc = shift || cwd();
-  my $basename   = shift || 'rects';
-  my $scale      = shift || $self->scale;
-  my $suffix     = '01'; # TODO uniquify?  Maybe with hh_mm?
+  my $rects        = shift;
+  my $output_loc   = shift || cwd();
+  my $basename     = shift || 'rects';
+  my $png_x_scale  = shift || $self->png_x_scale;
+  my $png_y_scale  = shift || $self->png_y_scale;
+  my $suffix       = '01'; # TODO uniquify?  Maybe with hh_mm?
 
   my $output_file = "$output_loc/$basename-$suffix.png";
   open my $imfh, '>', $output_file or die "$!";
   binmode $imfh;
 
   # create a new image
-  my $canvas_width  = $self->canvas_width;
-  my $canvas_height = $self->canvas_height;
-  my $im = new GD::Image( $canvas_width, $canvas_height );
+  my $png_canvas_width  = $self->png_canvas_width;
+  my $png_canvas_height = $self->png_canvas_height;
+  my $im = new GD::Image( $png_canvas_width, $png_canvas_height );
 
   my $colors = $self->generate_color_array( $im );
   my $black  = $im->colorAllocate(   0,   0,   0 );       
@@ -133,17 +155,26 @@ sub draw_placed {
 #     $im->transparent( $white );
 #     $im->interlaced( 'true' );
 
-  $im->setThickness( 3 );
+  my $png_dwg_thickness = $self->png_dwg_thickness;
+  $im->setThickness( $png_dwg_thickness );
 
   # x&y offset for entire drawing (room to label points, etc)
-  my $dwg_off = 30;
+  # my $png_dwg_offset = 30;
+  my $png_dwg_offset = $self->png_dwg_offset;
 
   for my $r ( @{ $rects } ) {
     my @coords_raw = @{ $r->coords };
-    my ( $x1, $y1, $x2, $y2 ) = map{ $_ * $scale + $dwg_off } @coords_raw;
-    # force y axis to be larger scale than x.
-    $y1 *= 3;
-    $y2 *= 3;
+#     my ( $x1, $y1, $x2, $y2 ) = map{ $_ * $png_scale + $png_dwg_offset } @coords_raw;
+
+#     # force y axis to be larger scale than x. HACK
+#     $y1 *= 3;
+#     $y2 *= 3;
+    my ( $x1, $y1, $x2, $y2 ) = @coords_raw;
+    $x1 = $x1 * $png_x_scale + $png_dwg_offset;
+    $x2 = $x2 * $png_x_scale + $png_dwg_offset;
+    $y1 = $y1 * $png_y_scale + $png_dwg_offset;
+    $y2 = $y2 * $png_y_scale + $png_dwg_offset;
+
     my $cat = $r->cat;
 
     # use original "raw" values for point labels:
@@ -186,8 +217,18 @@ them.
 The colors are choosen to have some contrast against a black
 background and to differ significantly from each other.
 
+Allocates 350 colors.
+
+Example usage: 
+
+  my $im = new GD::Image( $png_canvas_width, $png_canvas_height );
+  my $colors = $self->generate_color_array( $im );
+
 =cut
 
+### TODO refactor into two:
+###      a routine that generates rgb values (arrays-of-arrays),
+###      another that applies that to a $im via colorAllocate.
 sub generate_color_array {
   my $self = shift;
   my $im = shift;
@@ -224,8 +265,88 @@ sub generate_color_array {
     }
   }
   push @colors, shuffle @new_colors;
-  say STDERR "number of colors: " . scalar( \@colors );  # just curious 
+  # say STDERR "number of colors: " . scalar( @colors );  # just curious 
+  # number of colors: 350
   return \@colors;
+}
+
+
+=item check_placed
+
+Goes through the placed rectangles, looking for mistakes where
+two rectangles overlap.  Returns a copy of the report, 
+but if $DEBUG is on, it also reports directly to STDERR.
+
+Example usage:
+
+   my $report = $self->check_placed( $placed );
+
+=cut
+
+sub check_placed {
+  my $self = shift;
+  my $placed = shift;
+
+  my $report = 'check_placed, called on: ' . $self->placed_summary( $placed );
+
+  foreach my $i ( 0 .. $#{ $placed } ) { 
+    foreach my $j ( $i+1 .. $#{ $placed } ) { 
+      my $a = $placed->[ $i ];
+      my $b = $placed->[ $j ];
+
+      my $a_meta = $a->meta;
+      my $b_meta = $b->meta;
+
+      my $a_name = $a_meta->{cat_name};
+      my $a_id   = $a_meta->{cat};
+
+      my $b_name = $b_meta->{cat_name};
+      my $b_id   = $b_meta->{cat};
+
+      if( $a->is_overlapping( $b ) ) {  
+        # report the problem
+        my $a_coords = $a->coords;
+        my $b_coords = $b->coords;
+
+        my $mess;
+        $mess .= sprintf "%4d %13s: %d,%d  %d,%d\n", $a_id, $a_name, @{ $a_coords };
+        $mess .= sprintf "%4d %13s: %d,%d  %d,%d\n", $b_id, $b_name, @{ $b_coords };
+        ($DEBUG) && say STDERR $mess, "\n";
+        $report .= $mess;
+      }
+    }
+  }
+  return $report;
+}
+
+=item placed_summary
+
+Generates a summary of an array of href-based objects.
+Examines x1, y1, x2, y2, meta/cat, meta/cat_name, meta/metacat
+And also reports width=x2-x1, height=y2-y1.
+
+Returns a copy of the report.
+
+=cut
+
+sub placed_summary {
+  my $self = shift;
+  my $placed = shift || $self->placed;
+
+  my $count = scalar(@{ $placed });
+  my $class = ref( $placed->[0] );
+
+  my $report = "$count objects of $class\n";
+  foreach my $p ( @{ $placed } ) {
+    my ($x1, $y1, $x2, $y2, $meta) = ( $p->x1, $p->y1, $p->x2, $p->y2, $p->meta );
+    my ($cat, $cat_name, $metacat) = @{ $meta }{ 'cat', 'cat_name', 'metacat' };
+    my ($width, $height) = ( $x2-$x1, $y2-$y1 );
+    my $fmt = 
+      qq{%4d: %-10s mc:%-4d [%6.1f,%6.1f]  [%6.1f,%6.1f]  %6.1f x %-6.1f \n};
+    $report .= sprintf $fmt, 
+      $cat, $cat_name, $metacat, $x1, $y1, $x2, $y2, $width, $height;
+  }
+  return $report;
 }
 
 

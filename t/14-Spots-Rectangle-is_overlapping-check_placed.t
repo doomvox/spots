@@ -22,7 +22,8 @@ BEGIN {
   use FindBin qw($Bin);
   use lib ("$Bin/../lib/");
   use_ok( 'Spots::Rectangle' , );
-  use_ok( 'Spots::Rectangle::TestData', ':all' );  
+  use lib ("$Bin/lib");
+  use_ok( 'Spots::Rectangle::TestData', ':all' );
 }
 
 ok(1, "Traditional: If we made it this far, we're ok.");

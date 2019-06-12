@@ -60,6 +60,7 @@ use List::Util      qw( first max maxstr min minstr reduce shuffle sum any );
 use List::MoreUtils qw( zip uniq );
 use String::ShellQuote qw( shell_quote );
 
+use Spots::Config qw( $config );
 use Spots::DB::Handle;
 use Spots::Rectangle;
 use Spots::Category;
@@ -89,28 +90,19 @@ has dbname => (is => 'rw', isa => Str, default => 'spots' );
 has dbh    => (is => 'rw', isa => InstanceOf['DBI::db'],
                lazy => 1, builder => 'builder_db_connection' );
 
-has top_bound   => (is => 'ro', isa => Num, default => 0 );
-has left_bound  => (is => 'ro', isa => Num, default => 0 );
-has bot_bound   => (is => 'ro', isa => Num, default => 10000 );  # big numbers for now
-has right_bound => (is => 'ro', isa => Num, default => 10000 );
-
-# See Category.pm x_scale, y_scale  (a good use for a project-wide config file.) 
-# # default values empirically determined
-# has vertical_scale     => (is => 'rw', isa => Num,  default => 1.3 ); # rem per line
-# has horizontal_scale   => (is => 'rw', isa => Num,  default => 12  ); # px per char
-
-# Unused here: 
-# has vertical_padding   => (is => 'rw', isa => Num,  default => 2   );  # rem
-# has horizontal_padding => (is => 'rw', isa => Int,  default => 10  );  # px 
+has top_bound   => (is => 'ro', isa => Num, default => $config->{ top_bound } || 0 );
+has left_bound  => (is => 'ro', isa => Num, default => $config->{ left_bound } || 0 );
+has bot_bound   => (is => 'ro', isa => Num, default => $config->{ bot_bound } || 10000 );  # big numbers for now
+has right_bound => (is => 'ro', isa => Num, default => $config->{ right_bound } || 10000 );
 
 # used by metacats_fanout, find_hole_for_cat_thataway
-has nudge_x   => (is => 'rw', isa => Num,  default => 1 );  # rem   was 1.5
-has nudge_y   => (is => 'rw', isa => Int,  default => 4 );  # px    was 6
+has nudge_x   => (is => 'rw', isa => Num,  default => $config->{ nudge_x } || 1 );  # rem   was 1.5
+has nudge_y   => (is => 'rw', isa => Int,  default => $config->{ nudge_y } || 4 );  # px    was 6
 
-has initial_y => (is => 'rw', isa => Int,  default => 0    ); # rem 
-has initial_x => (is => 'rw', isa => Int,  default => 4    ); # px
+has initial_y => (is => 'rw', isa => Int,  default => $config->{ initial_y } || 0    ); # rem 
+has initial_x => (is => 'rw', isa => Int,  default => $config->{ initial_x } || 4    ); # px
 
-has layout_style => (is => 'rw', isa => Str, default => 'metacats_fanout' ); 
+has layout_style => (is => 'rw', isa => Str, default => $config->{ layout_style } || 'metacats_fanout' ); 
 
 # array of rectangles added to the current layout (used by 'metacats_fanout')
 has placed       => (is => 'rw', isa => ArrayRef, default => sub{ [] } );
@@ -187,7 +179,7 @@ Blank out the coordinate columns in the layout table:
 
 Note, this feature has no safety feature confining it only to "test" 
 dbnames or anything like that. This data is assumed to be fluid
-and constantly re-generated.  (You can argue they shouldn't be in the db.)
+and constantly re-generated.  (You can argue it shouldn't be in the db.)
 
 =cut
 
@@ -292,8 +284,7 @@ sub generate_layout_metacats_fanout {
     croak "Sadly, we have no cats, we can not 'generate_layout_metacats_fanout'";
   }
 
-  # TODO why not do this here, rather than in generate_homepage.pl?
-  #   $obj->clear_layout;
+  $self->clear_layout;
 
   # initialize $placed array: place the first cat in upper-left
   $self->clear_placed;
@@ -996,88 +987,6 @@ sub candidate_dumper {
 
 
 
-=item check_placed
-
-Goes through the placed rectangles, looking for mistakes where
-two rectangles overlap.  Returns a copy of the report, 
-but if $DEBUG is on, it also reports directly to STDERR.
-
-Example usage:
-
-   my $report = $self->check_placed();
-
-=cut
-
-sub check_placed {
-  my $self = shift;
-  my $placed = shift || $self->placed;
-
-#   say "===\n";
-#   say Dumper( $placed );
-#   say "===\n";
-
-  my $report = 'check_placed, called on: ' . $self->placed_summary( $placed );
-
-  foreach my $i ( 0 .. $#{ $placed } ) { 
-    foreach my $j ( $i+1 .. $#{ $placed } ) { 
-      my $a = $placed->[ $i ];
-      my $b = $placed->[ $j ];
-
-      my $a_meta = $a->meta;
-      my $b_meta = $b->meta;
-
-      my $a_name = $a_meta->{cat_name};
-      my $a_id   = $a_meta->{cat};
-
-      my $b_name = $b_meta->{cat_name};
-      my $b_id   = $b_meta->{cat};
-
-      if( $a->is_overlapping( $b ) ) {  
-        # report the problem
-        my $a_coords = $a->coords;
-        my $b_coords = $b->coords;
-
-        my $mess;
-        $mess .= sprintf "%4d %13s: %d,%d  %d,%d\n", $a_id, $a_name, @{ $a_coords };
-        $mess .= sprintf "%4d %13s: %d,%d  %d,%d\n", $b_id, $b_name, @{ $b_coords };
-        ($DEBUG) && say STDERR $mess, "\n";
-        $report .= $mess;
-      }
-    }
-  }
-  return $report;
-}
-
-=item placed_summary
-
-Dumps a summary of an array of href-based objects to STDERR.
-Examines x1, y1, x2, y2, meta/cat, meta/cat_name, meta/metacat
-
-Also reports width=x2-x1, height=y2-y1.
-
-=cut
-
-sub placed_summary {
-  my $self = shift;
-  my $placed = shift || $self->placed;
-
-  my $count = scalar(@{ $placed });
-  my $class = ref( $placed->[0] );
-
-#  print STDERR "$count objects of $class\n";
-  my $report = "$count objects of $class\n";
-  foreach my $p ( @{ $placed } ) {
-    my ($x1, $y1, $x2, $y2, $meta) = ( $p->x1, $p->y1, $p->x2, $p->y2, $p->meta );
-    my ($cat, $cat_name, $metacat) = @{ $meta }{ 'cat', 'cat_name', 'metacat' };
-    my ($width, $height) = ( $x2-$x1, $y2-$y1 );
-    my $fmt = 
-      qq{%4d: %-10s mc:%-4d [%6.1f,%6.1f]  [%6.1f,%6.1f]  %6.1f x %-6.1f \n};
-    $report .= sprintf $fmt, 
-      $cat, $cat_name, $metacat, $x1, $y1, $x2, $y2, $width, $height;
-  }
-  # print STDERR $report;
-  return $report;
-}
 
 
 

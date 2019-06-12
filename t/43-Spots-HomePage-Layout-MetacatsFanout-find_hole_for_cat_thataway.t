@@ -1,5 +1,5 @@
 # Perl test file, can be run like so:
-#   perl 28-Spots-HomePage-find_hole_for_cat_thataway.t
+#   perl 43-Spots-HomePage-find_hole_for_cat_thataway.t
 #          doom@kzsu.stanford.edu     2019/05/16 11:09:32
 
 use 5.10.0;
@@ -21,23 +21,21 @@ use String::ShellQuote qw( shell_quote_best_effort );
 
 use Test::More;
 
-our $test_lib;
 BEGIN {
   use FindBin qw($Bin);
   use lib ("$Bin/../lib/");
+  use_ok( 'Spots::Rectangler', );
 #  use_ok( 'Spots::HomePage' );
   use_ok( 'Spots::HomePage::Layout::MetacatsFanout' );
-  $test_lib = "$Bin/lib/";
+  use lib ("$Bin/lib");
+  use_ok( 'Spots::Rectangle::TestData', ':all' );  # draw_placed
 }
-
-use lib ($test_lib);
-use Spots::Rectangle::TestData qw(:all);  # draw_placed
-use Spots::Rectangler;
 
 ok(1, "Traditional: If we made it this far, we're ok.");
 
 #my $output_directory = "$Bin/dat/t28";
-my $output_directory = "$Bin/src/t28";
+# my $output_directory = "$Bin/src/t28";
+my $output_directory = "$Bin/out/t28";
 mkpath( $output_directory ) unless -d $output_directory;
 
 { no warnings 'once'; $DB::single = 1; }
@@ -59,18 +57,18 @@ mkpath( $output_directory ) unless -d $output_directory;
                               );
 
    my ($cat, $placed) = define_params();
-   $obj->placed_summary( $placed );
+   # TODO now in the Rectangler, and returns, doesn't print 
+   # $obj->placed_summary( $placed );
 
-#   draw_placed( $placed, $output_directory, "placed" );
    my $tangler = Spots::Rectangler->new();
-   $tangler->draw_placed( $placed, $output_directory, "placed" );  # creates a png in current directory
-
+   $tangler->draw_placed( $placed, $output_directory, "placed" );
+       
    # begins next door to a given start rectangle: 
    my ($x_trial, $y_trial) = ( 124, 0 );
 
    my $adds = $obj->find_hole_for_cat_thataway( $direction, $cat, $x_trial, $y_trial, $placed );
 
-   say STDERR Dumper( $adds );
+   # say STDERR Dumper( $adds );
   # $expected = [
   #           124,
   #           0
@@ -97,28 +95,27 @@ mkpath( $output_directory ) unless -d $output_directory;
    my $direction = 's';
    $test_name .= " direction $direction";
 
-   # This test (probably) won't use these settings, another test like it might
    my $base = "mah_moz_ohm";
-   my $output_directory =  "...";  ### TODO a scratch location in test tree 
-   mkpath( $output_directory ) unless -d $output_directory;
 
-   # TODO need way to reinitializing the spots_test db to known state 
+   # this test doesn't actually hit the database or write any files
+   my $dbname = 'spots_test'; 
 #   my $obj = Spots::HomePage->new(
    my $obj = Spots::HomePage::Layout::MetacatsFanout->new(
                                output_basename  => $base,
                                output_directory => $output_directory,
-                               db_database_name => 'spots_test',
+                               db_database_name => $dbname,
                               );
 
    my ($cat, $placed) = define_params();
 
-   $obj->placed_summary( $placed );
+   # TODO now in the Rectangler, and returns, doesn't print 
+   # $obj->placed_summary( $placed );
 
    # begins just below a given start rectangle: 
    my ($x_trial, $y_trial) = ( 5, 12.1 );
 
    my $adds = $obj->find_hole_for_cat_thataway( $direction, $cat, $x_trial, $y_trial, $placed );
-   say STDERR Dumper( $adds );
+   # say STDERR Dumper( $adds );
 
    my $x_result = $adds->[0];  # 5
    my $y_result = $adds->[1];  # 27.8

@@ -5,13 +5,16 @@ package Spots::Config;
 
 =head1 NAME
 
-Spots::Config - TODO Perl extension for blah blah blah
+Spots::Config - system-wide configuration defaults for Spots
 
 =head1 SYNOPSIS
 
+   use Spots::Config qw( $config );
+   my $output_directory = $config->{ output_directory };
+
+   # This works also
    use Spots::Config ':all';
 
-   TODO
 
 =head1 DESCRIPTION
 
@@ -50,9 +53,8 @@ BEGIN {
  require Exporter;
  @ISA = qw(Exporter);
  %EXPORT_TAGS = ( 'all' => [
- # TODO Add names of items to export here.
  qw(
-
+     $config
     ) ] );
   # The above allows declaration	use Spots::Config ':all';
 
@@ -64,7 +66,79 @@ BEGIN {
 our $VERSION = '0.01';
 my $DEBUG = 1;
 
-# Preloaded methods go here.
+=item $config
+
+$config is a reference to a hash of key-value parameters, 
+a set of system-wide defaults for all of the Spots code.
+
+=cut 
+
+
+our $config =
+  {
+   output_file_basename => 'mah_moz_ohm',
+   # output_directory   => "$HOME/End/Stage/Rook/spots",
+   output_directory     => "$HOME/End/Cave/Spots/Output",
+   db_database_name     => 'spots',  # aka dbname
+   default_layout_style => 'metacats_fanout',
+
+   # Spots::Homepage::Layout  (( TODO ))
+   layout_style =>  'metacats_fanout' , 
+
+   # Spots::Homepage::Layout::MetacatsFanout
+   top_bound   =>  0 ,
+   left_bound  =>  0 ,
+   bot_bound   =>  10000 ,  # big numbers for now
+   right_bound =>  10000 ,
+
+   # used by metacats_fanout, find_hole_for_cat_thataway
+   nudge_x   =>  1 ,  # rem   was 1.5
+   nudge_y   =>  4 ,  # px    was 6
+
+   initial_y =>  0    , # rem 
+   initial_x =>  4    , # px
+
+   # Spots::Homepage::Generate
+   # 'live'
+   color_container_bg => '#000000',
+   color_category_bg  => '#000000',
+   color_footer_bg    => '#000000',
+   color_anchor_fg    => '#EFFFFF',
+   color_body_bg      => '#000000',
+   color_body_fg      => '#000000',
+
+   # 'dev' (an alternate color scheme)
+   dev_color_container_bg => '#225588',
+   dev_color_category_bg  => '#BBDD00',
+   dev_color_footer_bg    => 'lightgray',
+   dev_color_anchor_fg    => '#001111',
+   dev_color_body_bg      => '#000000',
+   dev_color_body_fg      => '#CC33FF', 
+
+   # Spots::Rectangler  draw_placed
+   png_canvas_width     => 1800,
+   png_canvas_height    => 900,
+   png_x_scale          => 1.5,
+   png_y_scale          => 1.5*3,
+   png_dwg_offset       => 30,
+   png_dwg_thickness    => 3, 
+
+   rectangle_y_weight   => 6.5,  # eventually use project px_per_rem figure
+
+   category_x_scale     => 10,    # average px per char
+   category_y_scale     => 1.32,  # rem per line
+
+   # Spots::DB::Handle
+   port        =>  '5432',
+   username    =>  $USER,
+   auth        =>  '',
+   autocommit  =>  1,
+   raise_error =>  1,
+   print_error =>  0,
+
+
+
+   };
 
 
 

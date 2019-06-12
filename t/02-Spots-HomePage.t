@@ -55,7 +55,7 @@ ok(1, "Traditional: If we made it this far, we're ok.");
    my $genner = Spots::HomePage::Generate->new();
 
    my $outdir = $genner->output_directory;
-   is( $outdir,  '/home/doom/End/Cave/Spots/Wall', "$test_name: output_directory" );
+   is( $outdir,  '/home/doom/End/Cave/Spots/Output', "$test_name: output_directory" );
 
    $genner->output_directory('/home/doom/End/Cave/Spots/tmp');
    $outdir = $genner->output_directory;

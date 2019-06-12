@@ -54,6 +54,7 @@ use Env             qw( HOME USER );
 use List::Util      qw( first max maxstr min minstr reduce shuffle sum any );
 use List::MoreUtils qw( zip uniq );
 use String::ShellQuote qw( shell_quote );
+use Spots::Config qw( $config );
 use Spots::DB::Init::Namer;
 
 # use DBI;  # at present this is unnecessary

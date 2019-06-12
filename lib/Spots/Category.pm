@@ -52,6 +52,8 @@ use List::Util      qw( first max maxstr min minstr reduce shuffle sum any );
 use List::MoreUtils qw( zip uniq );
 use String::ShellQuote qw( shell_quote_best_effort );
 use DBI;
+
+use Spots::Config qw( $config );
 use Spots::DB::Handle;
 
 =item new
@@ -74,9 +76,9 @@ to the names of the object attributes. These attributes are:
 has debug            => (is => 'rw', isa => Bool, default => sub{return ($DEBUG||0)});
 
 has id               => (is => 'ro', isa => Int, required=>1 );  
-has dbname           => (is => 'rw', isa => Str, default => 'spots' );
-has x_scale          => (is => 'rw', isa => Num, default => 10 );  # average px per char
-has y_scale          => (is => 'rw', isa => Num, default => 1.32 ); # rem per line
+has dbname           => (is => 'rw', isa => Str, default => $config->{ db_database_name } || 'spots' );
+has x_scale          => (is => 'rw', isa => Num, default => $config->{ category_x_scale } || 10 );     # average px per char
+has y_scale          => (is => 'rw', isa => Num, default => $config->{ category_y_scale } || 771.32 ); # rem per line
 
 has spots            => (is => 'ro', isa => ArrayRef, lazy=>1, builder => 'builder_spots');
 has spot_count       => (is => 'rw', isa => Int,      lazy=>1, builder => 'builder_spot_count');  
@@ -96,7 +98,7 @@ has sth_cat          => (is => 'rw', isa => InstanceOf['DBI::st'], lazy=>1, buil
 has sth_x_y          => (is => 'rw', isa => InstanceOf['DBI::st'], lazy=>1, builder => 'builder_prep_sth_x_y_location');
 
 # TODO Is it a logical violation to put x/y values here? 
-#      They're *rectangle* properties, not *inherent* to a particular cat.
+#      These are *rectangle* properties, not *inherent* to a particular cat.
 has x_y_location     => (is => 'rw', isa => HashRef,  lazy=>1, builder => 'builder_x_y_location' ); # container href for internal use
 has x_location       => (is => 'rw', isa => Int,      lazy=>1, builder => sub{ ${ $_[0]->x_y_location }{ x_location } } );   
 has y_location       => (is => 'rw', isa => Str,      lazy=>1, builder => sub{ ${ $_[0]->x_y_location }{ y_location } } );   

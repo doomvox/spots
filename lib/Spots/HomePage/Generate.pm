@@ -63,6 +63,7 @@ use List::Util      qw( first max maxstr min minstr reduce shuffle sum any );
 use List::MoreUtils qw( zip uniq );
 use String::ShellQuote qw( shell_quote );
 
+use Spots::Config qw( $config );
 use Spots::Herd;
 use Spots::Category;
 use Spots::DB::Handle;
@@ -131,13 +132,16 @@ An optional list of cat ids to override the "all_cats" look up.
 
 has debug => (is => 'rw', isa => Bool, default => sub{return $DEBUG});
 
-has dbname => (is => 'rw', isa => Str, default => 'spots' );
+
+has dbname  => (is => 'rw', isa => Str, default => $config->{ db_database_name } || 'spots' );
 
 has output_basename  => (is => 'rw', isa => Str,
-                         default => 'moz_ohm' );
+                        default => $config->{ output_file_basename }  || 'mah_moz_ohm');
 has output_directory => (is => 'rw', isa => Str,
-                         default => "$HOME/End/Cave/Spots/Wall" );
+                         default => $config->{ output_directory }  || 'mah_moz_ohm');
 
+
+# TODO rethink
 # has color_scheme => (is => 'rw', isa => Str, default => 'dev' ); 
 has color_scheme => (is => 'rw', isa => Str, default => 'live' ); # or 'dev'
 
@@ -156,9 +160,6 @@ has all_cats   => (is => 'rw', isa => ArrayRef[InstanceOf['Spots::Category']],
 
 has dbh         => (is => 'rw', isa => InstanceOf['DBI::db'], lazy => 1,
                     builder => 'builder_db_connection' );
-
-# has sth_cat_size      => (is => 'rw', isa => InstanceOf['DBI::st'], lazy => 1,
-#                           builder => 'builder_prep_sth_sql_cat_size');
 
 
 # optional list of cat ids to override the "all_cats" lookup-- 
@@ -183,21 +184,6 @@ sub builder_css_file {
   return $css_file;
 }
 
-# TODO not in use
-sub builder_html_fh {
-  my $self = shift;
-  my $html_file = $self->html_file;
-  open( my $html_fh, '>', $html_file ); 
-  return $html_fh;
-}
-
-# TODO not in use
-sub builder_css_fh {
-  my $self = shift;
-  my $css_file = $self->css_file;
-  open( my $css_fh, '>', $css_file ); 
-  return $css_fh;
-}
 
 =item builder_db_connection
 
@@ -211,17 +197,6 @@ sub builder_db_connection {
   return $dbh;
 }
 
-# =item builder_prep_sth_sql_cat_size
-
-# =cut
-
-# sub builder_prep_sth_sql_cat_size {
-#   my $self = shift;
-#   my $dbh = $self->dbh;
-#   my $sql_cat_size = $self->sql_for_cat_size();
-#   my $sth_cat_size = $dbh->prepare( $sql_cat_size );
-#   return $sth_cat_size;
-# }
 
 =item builder_cat_herder
 
@@ -230,7 +205,6 @@ sub builder_db_connection {
 sub builder_cat_herder {
   my $self = shift;
   my $dbname = $self->dbname;
-#   my $herd = Spots::Herd->new(  dbname => $dbname ); 
   my $over_cats = $self->over_cats;
   my $herd = Spots::Herd->new( dbname => $dbname, over_cats => $over_cats ); 
   return $herd;
@@ -421,6 +395,11 @@ sub maximum_height_and_width_of_layout {    # TODO warn if there's no x/y values
 
 =item colors
 
+The color scheme as defined in Spots::Config by six colors.  
+
+The object's 'color_scheme' chooses whether to use 'live' or 'dev' 
+colors.
+
 =cut
 
 sub colors {
@@ -431,22 +410,22 @@ sub colors {
   if ( $color_scheme eq 'dev' ) { 
     %colors = 
       (
-       container_bg => '#225588',
-       category_bg  => '#BBDD00',
-       footer_bg    => 'lightgray',
-       anchor_fg    => '#001111',
-       body_bg      => '#000000',
-       body_fg      => '#CC33FF', 
+       container_bg => $config->{ dev_color_container_bg } || '#225588',
+       category_bg  => $config->{ dev_color_category_bg  } || '#BBDD00',
+       footer_bg    => $config->{ dev_color_footer_bg    } || 'lightgray',
+       anchor_fg    => $config->{ dev_color_anchor_fg    } || '#001111',
+       body_bg      => $config->{ dev_color_body_bg      } || '#000000',
+       body_fg      => $config->{ dev_color_body_fg      } || '#CC33FF', 
       );
   } elsif ($color_scheme eq 'live' ) { 
     %colors = 
       (
-       container_bg => $black,
-       category_bg  => $black,
-       footer_bg    => $black,
-       anchor_fg    => '#EFFFFF',
-       body_bg      => $black,
-       body_fg      => $black,
+       container_bg => $config->{ color_container_bg} || $black,
+       category_bg  => $config->{ color_category_bg } || $black,
+       footer_bg    => $config->{ color_footer_bg   } || $black,
+       anchor_fg    => $config->{ color_anchor_fg   } || '#EFFFFF',
+       body_bg      => $config->{ color_body_bg     } || $black,
+       body_fg      => $config->{ color_body_fg     } || $black,
       );
   }
   return \%colors;

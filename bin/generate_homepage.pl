@@ -59,76 +59,55 @@ GetOptions ("d|debug"    => \$DEBUG,
 use FindBin qw($Bin);
 use lib ("$Bin/../lib/");
 # use Spots::HomePage; 
+use Spots::Config qw( $config );
 use Spots::HomePage::Layout::MetacatsFanout;
 use Spots::HomePage::Generate;
+use Spots::Rectangler;
 
 use lib ("$Bin/../t/lib");
 use Spots::Rectangle::TestData ':all';  # draw_placed
 
-my @over_cats = @ARGV; # optionally, a list of cat ids on the command-line 
+# my @over_cats = @ARGV; # optionally, a list of cat ids on the command-line 
+my @over_cats = ();  # DEBUG feature
 
-#DEBUG
-# @over_cats = qw( 12 32 55 5 );
-# @over_cats = qw( 1 2 3 4 );
-# @over_cats = qw( 1 2 3  );
-@over_cats = ();
-
-say Dumper( \@over_cats ) if @over_cats;
-
-# TODO rethink:
-## my $base             = shift || "mah_moz_ohm";
-my $base             =  "mah_moz_ohm";
-my $monster = 'Akkorokamui';
-# my $output_directory = shift || "/home/doom/End/Cave/Spots/Output/$monster"; 
-my $output_directory = "/home/doom/End/Cave/Spots/Output/$monster"; 
-
+my $base =  $config->{ output_file_basename } || "mah_moz_ohm";
+my $monster = 'Jimbanyan';
+my $output_directory = $config->{ output_directory };
+$output_directory .= "/$monster" if $monster;
 mkpath( $output_directory ) unless -d $output_directory;
 
-# TODO ultimately, use:
-# my $output_directory = "$HOME/End/Stage/Rook/spots";
-
-my $obj = Spots::HomePage::Layout::MetacatsFanout->new(
-#                               output_basename  => $base,
-#                               output_directory => $output_directory,
-                               db_database_name => 'spots',
-#                               db_database_name => 'spots_test',
-                               over_cats => \@over_cats,
-                              );
+my $layo = Spots::HomePage::Layout::MetacatsFanout->new(
+               db_database_name => $config->{ db_database_name },
+               over_cats => \@over_cats,
+            );
 
 {no warnings 'once'; $DB::single = 1;}
 
 # my $style;
-# $style     = 'metacats_fanout',
+# $style     = $config->{ default_layout_style } || 'metacats_fanout',
 # say "Doing a $style run in $monster";
-# $obj->generate_layout( $style );
+# $layo->generate_layout( $style );
 
-$obj->clear_layout;
+$layo->generate_layout_metacats_fanout();
 
-$obj->generate_layout_metacats_fanout();
+my $placed = $layo->placed;
 
-my $placed = $obj->placed;
-
-# draw_placed( $placed, $output_directory, 'placed', 2 );
-use Spots::Rectangler;
 my $tangler = Spots::Rectangler->new();
 $tangler->draw_placed( $placed, $output_directory, 'placed', 2 );
-
-{ no warnings 'once'; $DB::single = 1; }
-my $report = $obj->check_placed( $placed );
-
+my $report = $layo->check_placed( $placed );
 say $report;
-
 
 my $genner =
   Spots::HomePage::Generate->new(
-                               output_basename  => $base,
-                               output_directory => $output_directory,
-                               over_cats => \@over_cats,
-                                           );
+               output_basename  => $base,
+               output_directory => $output_directory,
+               over_cats        => \@over_cats,
+            );
 
 $genner->html_css_from_layout();
 
 # TODO check whether expected file has been created/modified
+
 
 
 ### end main, into the subs

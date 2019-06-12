@@ -22,6 +22,7 @@ BEGIN {
   use FindBin qw($Bin);
   use lib ("$Bin/../lib/");
   use_ok( 'Spots::Rectangle' , );
+  use lib ("$Bin/lib");
   use_ok( 'Spots::Rectangle::TestData', ':all' );
 }
 
@@ -33,8 +34,9 @@ ok(1, "Traditional: If we made it this far, we're ok.");
   my $test_name = "Testing placed data structures";
   my $placed_grendel1 = generate_placed_grendel1();
   my $placed_grendel1_raw = generate_placed_raw();
-
-  is_deeply( $placed_grendel1, $placed_grendel1_raw, "$test_name: refactored form matches raw form" );
+  
+  is_deeply( $placed_grendel1, $placed_grendel1_raw,
+             "$test_name: refactored form matches raw form" );
 }
 
 done_testing();

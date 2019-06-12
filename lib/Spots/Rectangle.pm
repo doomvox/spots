@@ -76,8 +76,9 @@ rectangle (as is often used in software UIs) as two points:
 use 5.10.0;
 use Carp;
 use Data::Dumper;
-
 use List::Util qw( min );
+
+use Spots::Config qw( $config );
 
 =item new
 
@@ -117,12 +118,12 @@ has y1 => ( is => 'ro', isa => Num, lazy => 1, builder=>'build_y1' );
 has x2 => ( is => 'ro', isa => Num, lazy => 1, builder=>'build_x2' );
 has y2 => ( is => 'ro', isa => Num, lazy => 1, builder=>'build_y2' );
 
-our $Y_WEIGHT = 6.5;  # 1  12  6  8  9    8.5  10 
-has y_weight => ( is => 'ro', isa => Num, default => $Y_WEIGHT );  # comparing rem to px
+# we do vector summation of distances, in which we're comparing rem to px, so...
+has y_weight => ( is => 'ro', isa => Num, default => $config->{rectangle_y_weight} );
 
 has center => ( is => 'ro', isa => ArrayRef, lazy => 1, builder=>'calculate_center' ); 
 
-has meta => ( is => 'rw', isa => HashRef, lazy => 1, builder=>sub{ {} } ); 
+has meta   => ( is => 'rw', isa => HashRef, lazy => 1, builder=>sub{ {} } ); 
 
 
 sub build_x1 {

@@ -1,0 +1,38 @@
+body { 
+  font-family: helvetica, verdana, arial, sans-serif;
+}
+
+a {
+  color:      #001111
+}
+
+body {
+  color:      #CC33FF;
+  background: #000000;
+  box-sizing: border-box:
+}
+
+.container {
+    position: relative;
+    top:  2px;
+    left: 30px;
+    background: #225588;
+    border: dotted;
+    height: 34.9rem;
+}
+
+.footsie {
+    max-width: 400px;
+    background: lightgray;
+}
+
+.category {
+       background: #BBDD00;
+       border: solid 1px;
+       padding: 2px;
+       position: absolute;
+}
+
+#cat0001 { position: absolute;                   top:  0rem;                left: 5px;                height: 11.1rem;                       width:  118px;                       margin: 0px;                 padding: 0px;                 border: solid 1px;                 data-catname: oakland; } 
+#cat0002 { position: absolute;                   top:  12rem;                left: 5px;                height: 11.1rem;                       width:  118px;                       margin: 0px;                 padding: 0px;                 border: solid 1px;                 data-catname: sf; } 
+#cat0003 { position: absolute;                   top:  29rem;                left: 5px;                height: 5.9rem;                       width:  118px;                       margin: 0px;                 padding: 0px;                 border: solid 1px;                 data-catname: jobs; } 
