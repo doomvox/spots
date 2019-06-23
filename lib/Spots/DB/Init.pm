@@ -362,7 +362,7 @@ sub sanity_check_backup_files {
 
 sub drop_db {
   my $self = shift;
-  my $dbname = $self->dbname;
+  my $dbname = shift || $self->dbname;
   my $live   = $self->live;
   my $unsafe = $self->unsafe;
   my $verbose = $self->verbose;

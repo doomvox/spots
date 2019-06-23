@@ -53,6 +53,46 @@ GetOptions ("d|debug"    => \$DEBUG,
 
 { no warnings 'once'; $DB::single = 1; }
 
+# A lot of my test code is litering my postgres instance with dbnames like this:
+
+#  spots_fandango_31257_121839_test | postgres | UTF8     | en_US.UTF-8 | en_US.UTF-8 | 
+#  spots_fandango_31358_122114_test | postgres | UTF8     | en_US.UTF-8 | en_US.UTF-8 | 
+#  spots_fandango_3139_134333_test  | postgres | UTF8     | en_US.UTF-8 | en_US.UTF-8 | 
+#  spots_fandango_31507_122513_test | postgres | UTF8     | en_US.UTF-8 | en_US.UTF-8 | 
+#  spots_fandango_31513_212220_test | postgres | UTF8     | en_US.UTF-8 | en_US.UTF-8 | 
+
+use FindBin qw( $Bin );
+use lib "$Bin/../lib";  # perlnow should really find this location and use it TODO PERLNOW
+
+use Spots::DB::Init;
+use Spots::DB::Init::Namer;
+
+my $namer = Spots::DB::Init::Namer->new();
+my @dbnames = @{ $namer->list_databases };
+
+#      [0-9]{6,6}
+my $pat =
+  qr{
+      _
+      [0-9]+
+      _
+      [0-9][0-9][0-9][0-9][0-9]+
+      _test            # TODO get out of project configureation file
+      $
+  }x;
+
+my @condemned = grep { /$pat/ } @dbnames;
+
+say "condemned: ", Dumper \@condemned;
+
+# my $dbinit = Spots::DB::Init->new({ dbname => $dbname  });
+my $dbinit = Spots::DB::Init->new({ dbname => $USER,
+                                    live => 1,
+                                  });
+
+foreach my $dbname ( @condemned ) {
+  $dbinit->drop_db( $dbname );
+}
 
 
 
