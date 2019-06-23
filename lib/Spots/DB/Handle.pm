@@ -29,6 +29,12 @@ Spots::DB::Handle is a module that is largely a wrapper around DBI connect
 that supplies project-specific defaults which can be over-ridden, e.g. for
 test purposes.
 
+The database handle is cached internally, so repeated dbh call on
+one of these objects should return the same database handle.   
+
+Note: this does not handle reconnecting if a connection has been
+dropped.
+
 =head1 METHODS
 
 =over
@@ -134,8 +140,11 @@ sub builder_db_connection {
   my $auth = $self->auth;  # ''
   my %attr = ( AutoCommit => $self->autocommit,    # 1 
                RaiseError => $self->raise_error,   # 1 
-               PrintError => $self->print_error ); # 0
+               PrintError => $self->print_error,   # 0
+               AutoInactiveDestroy => 1,
+             ); 
   # my $dbh = DBI->connect($data_source, $username, $auth, \%attr);
+  # TODO okay, but better to be a package global, I mean "singleton"
   state $dbh ||= DBI->connect($data_source, $username, $auth, \%attr);
   # state $count; say "builder_db_connection called " . $count++ . " times.";
   return $dbh;

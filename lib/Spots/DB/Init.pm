@@ -68,7 +68,12 @@ to the names of the object attributes. These attributes are:
 
 =over
 
-=item <TODO fill-in attributes here... most likely, sort in order of utility>
+=item dbname
+
+The name of the postgresql DATABASE to act on.  
+This also gets used internally as the naming_prefix.
+
+<TODO fill-in attributes here... most likely, sort in order of utility>
 
 =back
 
@@ -83,6 +88,24 @@ to the names of the object attributes. These attributes are:
 #    my $namer = $self->db_init_namer;
 #    my $dbname = $namer->uniq_database_name;  
 # }
+
+# This code builds up later locations using spots_loc as root.
+# This is
+#  o  a verbose and effcient way to build a few strings (burning a lot of method calls)
+#  o  very specific to the way I'm working at present: not general enough to ship
+#  On the plus side, having them exposed as object fields makes them easy
+#  to over-ride... but good defaults would be good, no? 
+
+# Okay: default for *.sql files could be in parallel with the progloc from $0.
+# log and backup locations... could default to /tmp?  No: subdirs of 
+# spots_loc, and spots_loc can default to /tmp?  
+
+# That would mean that my defaults are locations that I would never use:
+# I think some sort of standard approach to project-configuration is in order,
+# like Config::Ini?  You pass in a config file location to everything in the project?
+# A standard envar with the config file name and path?  A naming convention to
+# find a config file for $0? 
+
 
 # Name of the DATABASE inside postgres to act on
 has dbname => ( is => 'rw', isa => Str, default => 'spots_test' );  # TODO 'spots' when live
@@ -111,7 +134,6 @@ has backup_loc  => ( is => 'rw', lazy=>1, isa => Str,
 has db_schema_loc  => ( is => 'rw', lazy=>1, isa => Str,
                      default => sub{ my $self = shift;
                                      my $spots_loc=$self->spots_loc;
-                                     say STDERR "TINGLER: spots_loc: $spots_loc";
                                      my $loc = "$spots_loc/Wall/Spots/bin";
                                      return $loc;
                                    } ); 
@@ -119,7 +141,6 @@ has db_schema_loc  => ( is => 'rw', lazy=>1, isa => Str,
 has db_data_loc    => ( is => 'rw', lazy=>1, isa => Str,
                      default => sub{ my $self = shift;
                                      my $spots_loc = $self->spots_loc;
-                                     say STDERR "WILLARD: spots_loc: $spots_loc";
                                      my $loc = "$spots_loc/Wall/Spots/bin";
                                      return $loc;
                                    } ); 
@@ -129,17 +150,17 @@ has dbname_safety_pats => ( is => 'rw', isa => ArrayRef, default => sub{ [ qr(_t
 # refuse to run if pg_dump backup files aren't larger than this
 has pg_dump_min_size   => ( is => 'rw', isa => Num,      default => 1000 );
 
-has prefix => ( is => 'rw', isa => Str,
+has naming_prefix => ( is => 'rw', isa => Str,
                          default => sub{ my $self = shift;
-                                         my $prefix = $self->dbname;   # e.g. 'spots'
-                                         return $prefix;
+                                         my $naming_prefix = $self->dbname;   # e.g. 'spots'
+                                         return $naming_prefix;
                                        } ); 
 
 has schema_backup_file => ( is => 'rw', isa => Str, lazy=>1,
                           default => sub { my $self = shift;
                                            my $date_stamp = $self->yyyy_month_dd();  # e.g. "2019may22"
-                                           my $prefix = $self->prefix;
-                                           my $name = "$prefix-schema-$date_stamp.sql";
+                                           my $naming_prefix = $self->naming_prefix;
+                                           my $name = "$naming_prefix-schema-$date_stamp.sql";
                                            my $loc  = $self->backup_loc;
                                            my $full = "$loc/$name";
                                            my $uni  = $self->uniquify( $full );
@@ -149,8 +170,8 @@ has schema_backup_file => ( is => 'rw', isa => Str, lazy=>1,
 has data_backup_file => ( is => 'rw', isa => Str, lazy=>1,
                           default => sub { my $self = shift;
                                            my $date_stamp = $self->yyyy_month_dd();  # e.g. "2019may22"
-                                           my $prefix = $self->prefix;
-                                           my $name = "$prefix-data-$date_stamp.sql";
+                                           my $naming_prefix = $self->naming_prefix;
+                                           my $name = "$naming_prefix-data-$date_stamp.sql";
                                            my $loc  = $self->backup_loc;
                                            my $full = "$loc/$name";
                                            my $uni  = $self->uniquify( $full );
@@ -171,8 +192,8 @@ has pg_restore_file => ( is => 'rw', isa => Str, lazy=>1,
 has log_file => ( is => 'rw', isa => Str, lazy=>1,
                              default => sub { my $self = shift;
                                               my $date_stamp = $self->yyyy_month_dd(); # e.g. "2019may22"
-                                              my $prefix = $self->prefix;
-                                              my $name = "$prefix-$date_stamp.log";
+                                              my $naming_prefix = $self->naming_prefix;
+                                              my $name = "$naming_prefix-$date_stamp.log";
                                               my $loc  = $self->log_loc;
                                               my $full = "$loc/$name";
                                               my $uni  = $self->uniquify( $full );
@@ -181,9 +202,8 @@ has log_file => ( is => 'rw', isa => Str, lazy=>1,
 
 has db_schema_file => ( is => 'rw', isa => Str, lazy=>1,
                              default => sub { my $self = shift;
-                                              # my $date_stamp = $self->yyyy_month_dd(); # e.g. "2019may22"
-                                              my $prefix = $self->prefix;
-                                              my $name = "$prefix-schema.sql";
+                                              my $naming_prefix = $self->naming_prefix;
+                                              my $name = "$naming_prefix-schema.sql";
                                               my $loc  = $self->db_schema_loc;
                                               my $full = "$loc/$name";
                                               return $full;
@@ -423,9 +443,7 @@ sub load_schema {
 sub load_data {
   my $self = shift;
   my $dbname = $self->dbname;
-
-  my $log_file = $self->log_file;
-
+  my $log_file     = $self->log_file;
   my $db_data_file = $self->db_data_file;
   
   my $db_data_file_sh = shell_quote( $db_data_file );
