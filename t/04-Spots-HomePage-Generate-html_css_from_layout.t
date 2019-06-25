@@ -28,7 +28,10 @@ BEGIN {
 #  use_ok( 'Spots::HomePage' , )
   use_ok( 'Spots::HomePage::Generate', );
   use lib ("$Bin/lib/");
-  use_ok( 'Spots::Test::DB::Init' , );
+  use_ok( 'Spots::Test::DB::Init' , );   
+                # /home/doom/End/Cave/Spots/Wall/Spots/lib/Spots/DB/Init.pm
+                # /home/doom/End/Cave/Spots/Wall/Spots/t/lib/Spots/Test/DB/Init.pm
+
 }
 
 ok(1, "Traditional: If we made it this far, we're ok.");
@@ -63,6 +66,10 @@ ok(1, "Traditional: If we made it this far, we're ok.");
                                   );
 
    $obj->html_css_from_layout();
+
+   # Need to zap connection to dbname so that drop_db can work
+   $obj->disconnect;
+   $tidb->drop_test_db( $dbname );
 
    ok( -e $output_html, "$test_name: html file created" );
    ok( -e $output_css,  "$test_name: css file created" );
@@ -118,9 +125,6 @@ ok(1, "Traditional: If we made it this far, we're ok.");
 # #cat0001 { position: absolute;                   top:  0rem;                left: 4px;                height: 9.24rem;                       width:  90px;                       margin: 0px;                 padding: 0px;                 border: solid 1px;                 data-catname: oakland; } 
 # #cat0002 { position: absolute;                   top:  10rem;                left: 4px;                height: 9.24rem;                       width:  90px;                       margin: 0px;                 padding: 0px;                 border: solid 1px;                 data-catname: sf; } 
 # #cat0003 { position: absolute;                   top:  19rem;                left: 4px;                height: 3.96rem;                       width:  90px;                       margin: 0px;                 padding: 0px;                 border: solid 1px;                 data-catname: jobs; } 
-
-
-
 
  }
 

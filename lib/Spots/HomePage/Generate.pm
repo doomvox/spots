@@ -223,6 +223,16 @@ sub builder_all_cats {
 
 
 
+=item disconnect
+
+=cut
+
+sub disconnect {
+  my $self = shift;
+  my $dbh = $self->dbh;
+  $dbh->disconnect;
+}
+
 
 
 =back 

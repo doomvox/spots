@@ -112,8 +112,8 @@ has dbname => ( is => 'rw', isa => Str, default => 'spots_test' );  # TODO 'spot
 
 # flags
 has live    => ( is => 'rw', isa => Bool, default => 0 );  # if not set, just a dry run
-has verbose => ( is => 'rw', isa => Bool, default => 1 );
-has debug   => ( is => 'rw', isa => Bool, default => 1 );
+has verbose => ( is => 'rw', isa => Bool, default => 0 );
+has debug   => ( is => 'rw', isa => Bool, default => 0 );
 has unsafe  => ( is => 'rw', isa => Bool, default => 0 );  
 
 # TODO default locations are tuned up for the way I'm working-- revise if shipped
@@ -356,18 +356,18 @@ sub sanity_check_backup_files {
 }
 
 
-=item drop_db
+=item drop_test_db
 
 =cut
 
-sub drop_db {
+sub drop_test_db {
   my $self = shift;
   my $dbname = shift || $self->dbname;
   my $live   = $self->live;
   my $unsafe = $self->unsafe;
   my $verbose = $self->verbose;
 
-  say STDERR "Running drop_db on dbname $dbname" if $verbose;
+  say STDERR "Running drop_test_db on dbname $dbname" if $verbose;
   unless( $unsafe ) { 
     croak "seeing spots"                                if ($dbname eq 'spots'); # TODO comment out when shipped
     croak "Attempt at dropping DATABASE postgres"       if ($dbname eq 'postgres');

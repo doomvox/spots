@@ -104,10 +104,11 @@ ok(1, "Traditional: If we made it this far, we're ok.");
         ];
    is_deeply( $aref_of_href, $expected, "$test_name: placed three cats in a column" );
 
-#    # break down
-#    $dbh->disconnect;
+   # break down
+   $dbh->disconnect;
 #    my $sidb = $tidb->db_init;
-#    $sidb->drop_db();
+#    $sidb->drop_test_db();
+   $tidb->drop_test_db( $dbname );
  }
 
 done_testing();

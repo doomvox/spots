@@ -1,5 +1,6 @@
 package Spots::DB::Handle;
 use Moo;
+### with 'MooX::Singleton';  # would need to use 'instance' everywhere rather than 'new"
 use MooX::Types::MooseLike::Base qw(:all);
 
 =head1 NAME
@@ -119,6 +120,7 @@ has autocommit  => (is => 'rw', isa => Bool, default => $config->{ autocommit } 
 has raise_error => (is => 'rw', isa => Bool, default => $config->{ raise_error } || 1 );  
 has print_error => (is => 'rw', isa => Bool, default => $config->{ print_error } || 0 );  
 
+our $SINGLETON_DBH;  # package global: make this a "Singleton" without change in external UI ('new')
 has dbh         => (is => 'rw', isa => InstanceOf['DBI::db'], lazy => 1,
                     builder => 'builder_db_connection' );
 
@@ -144,8 +146,12 @@ sub builder_db_connection {
                AutoInactiveDestroy => 1,
              ); 
   # my $dbh = DBI->connect($data_source, $username, $auth, \%attr);
-  # TODO okay, but better to be a package global, I mean "singleton"
-  state $dbh ||= DBI->connect($data_source, $username, $auth, \%attr);
+  #  a single dbh per Handle.pm instance
+  ### state $dbh ||= DBI->connect($data_source, $username, $auth, \%attr);
+
+  $SINGLETON_DBH ||= DBI->connect($data_source, $username, $auth, \%attr);
+  my $dbh = $SINGLETON_DBH;
+
   # state $count; say "builder_db_connection called " . $count++ . " times.";
   return $dbh;
 }

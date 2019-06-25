@@ -423,6 +423,22 @@ sub check_for_setup_sql {
 
 
 
+=item drop_test_db
+
+Drop the given $dbname, but only if it looks like a test db.
+
+=cut
+
+sub drop_test_db {
+  my $self = shift;
+  my $dbname = shift || $self->dbname;
+
+  my $db_init = $self->db_init;
+  $db_init->drop_test_db( $dbname );  
+}
+
+
+
 
 =back
 

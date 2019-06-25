@@ -4,20 +4,45 @@
 
 =head1 NAME
 
-drop_test_databases.pl - (( TODO insert brief description ))
+drop_test_databases.pl - drop test DATABASEs in your postgres installation
 
 =head1 SYNOPSIS
 
-  drop_test_databases.pl -[options] [arguments]
+  # list test dbnames (postgresql DATABASEs)
+  drop_test_databases.pl --list
 
-  TODO
+  # remove the test dbnames from your postgres installation
+  drop_test_databases.pl 
 
 =head1 DESCRIPTION
 
-B<drop_test_databases.pl> is a script which
+B<drop_test_databases.pl> is a script which removes left-over test databases 
+but only if their names match a particular pattern.  
 
-(( TODO  insert explanation
-   This is stub documentation created by template.el.  ))
+The --list or -L option can be used to just list the dbnames this script 
+would target.  Running without those options does a live run that actually 
+drops them.
+
+=head2 motivation 
+
+The Spots::HomePage test code creates new postgres DATABASEs (aka
+dbnames) on the fly to do do completely independent tests.  
+If the test code neglects to clean-up after itself, it may litter 
+your postgres installation with peculiarly named dbnames like this:
+
+    spots_fandango_31257_121839_test 
+    spots_fandango_31358_122114_test 
+    spots_fandango_3139_134333_test  
+    spots_fandango_31507_122513_test 
+    spots_fandango_31513_212220_test 
+
+This is a script that cleans up those left-over DATABASEs
+reasonably safely, by checking for *both* the *_test suffix and
+the presence of two numeric fields before it (the pid and 
+hhmmss). 
+
+You can first do trial runs with this script (using --list or -L), 
+just listing the matching dbnames without doing dropping them.
 
 =cut
 
@@ -43,23 +68,17 @@ use List::MoreUtils qw( zip uniq );
 our $VERSION = 0.01;
 my  $prog    = basename($0);
 
-my $DEBUG   = 1;                 # TODO set default to 0 when in production
+my $DEBUG   = 1;  # TODO set default to 0 when in production
+my $LIST    = 0;  # TODO set default to 0 when in production  
 GetOptions ("d|debug"    => \$DEBUG,
             "v|version"  => sub{ say_version(); },
             "h|?|help"   => sub{ say_usage();   },
+            "L|list"    => \$LIST,
            ) or say_usage();
 #           "length=i" => \$length,        # numeric
 #           "file=s"   => \$file,          # string
 
 { no warnings 'once'; $DB::single = 1; }
-
-# A lot of my test code is litering my postgres instance with dbnames like this:
-
-#  spots_fandango_31257_121839_test | postgres | UTF8     | en_US.UTF-8 | en_US.UTF-8 | 
-#  spots_fandango_31358_122114_test | postgres | UTF8     | en_US.UTF-8 | en_US.UTF-8 | 
-#  spots_fandango_3139_134333_test  | postgres | UTF8     | en_US.UTF-8 | en_US.UTF-8 | 
-#  spots_fandango_31507_122513_test | postgres | UTF8     | en_US.UTF-8 | en_US.UTF-8 | 
-#  spots_fandango_31513_212220_test | postgres | UTF8     | en_US.UTF-8 | en_US.UTF-8 | 
 
 use FindBin qw( $Bin );
 use lib "$Bin/../lib";  # perlnow should really find this location and use it TODO PERLNOW
@@ -83,19 +102,22 @@ my $pat =
 
 my @condemned = grep { /$pat/ } @dbnames;
 
-say "condemned: ", Dumper \@condemned;
+if( $LIST ) {
+  if (@condemned) { 
+    say "Condemned test databases: \n   ", join "\n   ", @condemned;
+  } else {
+    say "No test databases found.";
+  }
+} 
 
 # my $dbinit = Spots::DB::Init->new({ dbname => $dbname  });
-my $dbinit = Spots::DB::Init->new({ dbname => $USER,
-                                    live => 1,
+my $dbinit = Spots::DB::Init->new({ dbname  => $USER,
+                                    live    => not( $LIST ),
                                   });
 
 foreach my $dbname ( @condemned ) {
   $dbinit->drop_db( $dbname );
 }
-
-
-
 
 
 ### end main, into the subs
@@ -110,8 +132,8 @@ sub say_usage {
      -h          help (show usage)
      -v          show version
      --version   show version
-
-TODO add additional options
+     -L          list run (lists, does not drop test dbnames)
+     --list     list run (lists, does not drop test dbnames)
 
 USEME
   print "$usage\n";

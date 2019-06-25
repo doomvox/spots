@@ -128,9 +128,9 @@ ok(1, "Traditional: If we made it this far, we're ok.");
    $dbh2->disconnect;  # Needed or else drop_db will fail: "other users" connected to dbname
 
    # breakdown
-   $test_name = "Testing drop_db";
+   $test_name = "Testing drop_test_db";
    $sidb->verbose( 1 );
-   $sidb->drop_db(); # unless in unsafe mode, refuses to work if not named *_test
+   $sidb->drop_test_db(); # unless in unsafe mode, refuses to work if not named *_test
    $all_databases = $dbnamer->list_databases;
    $found = any{ $dbname eq $_ } @{ $all_databases };
    ok( not($found),  "$test_name: dropped db $dbname" );

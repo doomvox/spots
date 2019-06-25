@@ -60,7 +60,7 @@ ok(1, "Traditional: If we made it this far, we're ok.");
    $dbh->disconnect;
 
    my $sidb = $tidb->db_init;
-   $sidb->drop_db();
+   $sidb->drop_test_db();
  }
 
 done_testing();
