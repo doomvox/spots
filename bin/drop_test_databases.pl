@@ -108,17 +108,16 @@ if( $LIST ) {
   } else {
     say "No test databases found.";
   }
-} 
+} else {
+  # my $dbinit = Spots::DB::Init->new({ dbname => $dbname  });
+  my $dbinit = Spots::DB::Init->new({ dbname  => $USER,
+                                      live    => not( $LIST ),
+                                    });
 
-# my $dbinit = Spots::DB::Init->new({ dbname => $dbname  });
-my $dbinit = Spots::DB::Init->new({ dbname  => $USER,
-                                    live    => not( $LIST ),
-                                  });
-
-foreach my $dbname ( @condemned ) {
-  $dbinit->drop_db( $dbname );
+  foreach my $dbname ( @condemned ) {
+    $dbinit->drop_test_db( $dbname );
+  }
 }
-
 
 ### end main, into the subs
 
