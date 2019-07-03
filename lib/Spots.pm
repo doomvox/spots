@@ -25,11 +25,11 @@ Spots is a project that works with a postgresql database
 to track web sites and link information.
 
 At present the Spots.pm module is just a placeholder.
-The initial motivation of this project is to contain
-the Spots::Homepage code. Some day, Spots.pm might
-become a parent class for common code for a family 
-of projects... or it might just be used as a pod 
-repository.
+
+Spots.pm might become a parent class for common code for a family 
+of projects... or it might just be used as a pod repository.
+
+See: L<Spots::Homepage>.
 
 =head1 METHODS
 
