@@ -102,10 +102,11 @@ use Spots::HomePage::Generate;
 use Spots::Rectangler;
 
 use lib ("$Bin/../t/lib");
-use Spots::Rectangle::TestData ':all';  # draw_placed
+use Spots::Rectangle::TestData ':all';  
 
 my @over_cats = ();  # DEBUG feature
 
+## configure from command-line options and/or Spots::Config
 my $output_directory = $config->{ output_directory };
 if( $OUTLOC ) {
   $output_directory = $OUTLOC;
@@ -113,9 +114,9 @@ if( $OUTLOC ) {
   $output_directory .= "/$SUBDIR";
 }  
 mkpath( $output_directory ) unless -d $output_directory;
-
 my $output_basename = $BASENAME || $config->{ output_file_basename }; ## e.g. "mah_moz_ohm";
 
+## generate the layout of category rectangles 
 my $layo = Spots::HomePage::Layout::MetacatsFanout->new(
                db_database_name => $config->{ db_database_name },
                over_cats => \@over_cats,
@@ -123,11 +124,13 @@ my $layo = Spots::HomePage::Layout::MetacatsFanout->new(
 $layo->generate_layout_metacats_fanout();
 my $placed = $layo->placed;
 
+## report on the layout
 my $tangler = Spots::Rectangler->new();
 $tangler->draw_placed( $placed, $output_directory, 'placed', 2 );
 my $report = $tangler->check_placed( $placed );
 say $report;
 
+## generate html and css from the layout
 my $genner =
   Spots::HomePage::Generate->new(
                output_basename  => $output_basename,
@@ -137,21 +140,19 @@ my $genner =
             );
 $genner->html_css_from_layout();
 
-# check whether expected files have been created/modified
-my $html_file = "$output_directory/$output_basename.html";
-my $css_file  = "$output_directory/$output_basename.css";
-
-unless ( -e $html_file && -e $css_file ) {
-  die "Expected files don't exist: $html_file, $css_file"
+## check whether expected files have been created/modified
+my $html = "$output_directory/$output_basename.html";
+my $css  = "$output_directory/$output_basename.css";
+unless ( -e $html && -e $css ) {
+  die "Expected files don't exist: $html, $css"
 }
-
 my $time = 10; # mins
-my $chk_1 = -M $html_file;
-$chk_1 *= (24*60);
-my $chk_2 = -M $css_file;
+my $chk_1 = -M $html; # days
+$chk_1 *= (24*60);         # mins
+my $chk_2 = -M $css;
 $chk_2 *= (24*60);
 unless( $chk_1 < $time  &&  $chk_2  < $time ) {
-  die "Expected files weren't created in last ten mins: $html_file, $css_file"
+  die "Expected files weren't created in last ten mins: $html, $css"
 }
 
 
