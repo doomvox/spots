@@ -57,6 +57,11 @@ use String::ShellQuote qw( shell_quote );
 use Spots::Config qw( $config );
 use Spots::DB::Init::Namer;
 
+# use Config::INI::Writer;
+# use JSON;
+use Config::Std;
+
+
 # use DBI;  # at present this is unnecessary
 
 =item new
@@ -574,7 +579,7 @@ sub echo_cmd {
 
 =item safe_system
 
-A safe(r) system command.  
+Well, safer anyway.  Wrapper around the system command.  
 Echos given command, and only runs it if object's "live" flag is set.
 
 Usage:
@@ -595,6 +600,25 @@ sub safe_system {
     system( $cmd ) and die "$mess  $!";
   }
 }
+
+=item write_config_std_file
+
+Write object keys to a Config::Std format *.cfg file.
+
+=cut
+
+sub write_config_std_file {
+  my $self = shift;
+  my $file = shift || "$HOME/tmp/spottey.cfg";
+
+  my $class = ref $self;
+  my %hashola = ( %{$self} );
+
+  # A hash of hashes keyed by class (so other modules can use same file)
+  my %out = ( $class => \%hashola );
+  write_config %out, $file;
+}
+
 
 
 

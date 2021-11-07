@@ -39,11 +39,13 @@ ok(1, "Traditional: If we made it this far, we're ok.");
    my $test_name = "Testing $subname";
 
    my $tidb = Spots::Test::DB::Init->new();
+
    # my $dbname = $tidb->set_up_db_for_test();
    my $tp = $tidb->test_prefix;
    my $tNN = 't' . $tp;
 
    my $dbnamer = Spots::DB::Init::Namer->new();
+
    my $dbname = $dbnamer->uniq_database_name();  
    say "dbname: $dbname"; # dbname: spots_fandango_27171_20423_test
    my $prefix = $dbnamer->prefix;

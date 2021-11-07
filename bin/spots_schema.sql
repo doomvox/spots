@@ -59,7 +59,7 @@ CREATE TABLE spots (
        category     INTEGER  REFERENCES category (id)
        );
                               
-/* create a trigger on any table with a 'revised' column */
+/* trigger for the spots table, which has a 'revised' column */
 CREATE TRIGGER row_mod_on_spot_trigger
 BEFORE UPDATE                             
 ON spots

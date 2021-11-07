@@ -424,6 +424,11 @@ sub colors {
        category_bg  => $config->{ dev_color_category_bg  } || '#BBDD00',
        footer_bg    => $config->{ dev_color_footer_bg    } || 'lightgray',
        anchor_fg    => $config->{ dev_color_anchor_fg    } || '#001111',
+       
+       anchor_visited_fg   => $config->{ color_anchor_visited_fg } || '#d8bfd8',  # orchid
+       anchor_active_fg    => $config->{ color_anchor_active_fg } || 'red',
+       anchor_hover_fg     => $config->{ color_anchor_hover_fg } || '#ff8c00',  # dark orange
+
        body_bg      => $config->{ dev_color_body_bg      } || '#000000',
        body_fg      => $config->{ dev_color_body_fg      } || '#CC33FF', 
       );
@@ -434,6 +439,11 @@ sub colors {
        category_bg  => $config->{ color_category_bg } || $black,
        footer_bg    => $config->{ color_footer_bg   } || $black,
        anchor_fg    => $config->{ color_anchor_fg   } || '#EFFFFF',
+
+       anchor_visited_fg => $config->{ color_anchor_visited_fg } || '#DD99EE',  
+       anchor_active_fg  => $config->{ color_anchor_active_fg }  || 'red',
+       anchor_hover_fg   => $config->{ color_anchor_hover_fg }   || '#ff8c00',  # dark orange
+
        body_bg      => $config->{ color_body_bg     } || $black,
        body_fg      => $config->{ color_body_fg     } || $black,
       );
@@ -497,18 +507,37 @@ sub css_header {
   my $category_bg  = $colors->{ category_bg };
   my $footer_bg    = $colors->{ footer_bg };
   my $anchor_fg    = $colors->{ anchor_fg };
+
+  my $anchor_visited_fg = $colors->{ anchor_visited_fg };
+  my $anchor_active_fg  = $colors->{ anchor_active_fg };
+  my $anchor_hover_fg   = $colors->{ anchor_hover_fg };
+
   my $body_bg      = $colors->{ body_bg };
   my $body_fg      = $colors->{ body_fg };
 
 
+  print STDERR "anchor_visited_fg: $anchor_visited_fg \n";
+    
   my $css = <<"__END_CSS_HEAD";
 body { 
   font-family: helvetica, verdana, arial, sans-serif;
 }
 
-a {
+a:link {
   color:      $anchor_fg
 }
+
+a:visited {
+  color: $anchor_visited_fg;
+}
+
+a:hover {
+  color: $anchor_hover_fg;
+}
+
+a:active {
+  color: $anchor_active_fg;
+} 
 
 body {
   color:      $body_fg;

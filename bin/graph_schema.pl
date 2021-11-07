@@ -7,14 +7,15 @@ graph_schema.pl
 
 =head1 SYNOPSIS
 
+   # generate image file spots_schema_diagram.png in /tmp/output
+   graph_schema.pl  spots_schema_diagram   '/tmp/output'
+
+   # use hardcoded defaults to generate:  /home/doom/End/Cave/Spots/Output/spots_schema.png
+   graph_schema.pl
 
 =head1 DESCRIPTION
 
-Stub documentation for graph_schema.pl,
-created by template.el.
-
-It looks like the author of this script was negligent
-enough to leave the stub unedited.
+Graphs the spots database schema, using Graphviz dot via GraphViz::DBI::General
 
 =cut
 
@@ -26,21 +27,19 @@ use Data::Dumper;
 
 use FindBin qw($Bin);
 use lib ("$Bin/../lib/");
-use Spots::HomePage; 
+# use Spots::HomePage; 
+use Spots::HomePage::Generate; 
 
-# /home/doom/End/Cave/GraphVizDbiGeneral/Wall/GraphViz-DBI-General/lib/GraphViz/DBI/General.pm
-# /home/doom/End/Cave/Spots/Wall/Spots/bin/graph_schema.pl
 use lib "$Bin/../../../GraphVizDbiGeneral/Wall/GraphViz-DBI-General/lib";
 use GraphViz::DBI::General;
 
-
 my $base             = shift || "spots_schema";
-my $runny = 'Nyrlathotep';
-my $output_directory = shift || "/home/doom/End/Cave/Spots/Output/$runny"; 
+my $subdir = 'Jimbanyan';
+my $output_directory = shift || "/home/doom/End/Cave/Spots/Output/$subdir"; 
 
 my $diagram_file = "$output_directory/$base.png";
 
-my $obj = Spots::HomePage->new(
+my $obj = Spots::HomePage::Generate->new(
                                output_basename  => $base,
                                output_directory => $output_directory,
                                db_database_name => 'spots',
@@ -57,7 +56,7 @@ open my $fh, ">", $diagram_file or die "Couldn't open $diagram_file: $!";
 $gbdh->graph_tables->as_png( $fh );
 
 
-### This can't find a "new", but it should see the one from Graphviz::DBI, it does a use base of that.
+
 
 
 __END__

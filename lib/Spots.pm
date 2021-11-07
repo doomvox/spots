@@ -24,9 +24,8 @@ my $DEBUG = 1;
 Spots is a project that works with a postgresql database 
 to track web sites and link information.
 
-At present the Spots.pm module is just a placeholder.
-
-Spots.pm might become a parent class for common code for a family 
+At present this Spots.pm module is just a placeholder.
+It might become a parent class for common code for a family 
 of projects... or it might just be used as a pod repository.
 
 See: L<Spots::Homepage>.

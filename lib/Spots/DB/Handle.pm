@@ -26,9 +26,9 @@ my $DEBUG = 1;
 
 =head1 DESCRIPTION
 
-Spots::DB::Handle is a module that is largely a wrapper around DBI connect
-that supplies project-specific defaults which can be over-ridden, e.g. for
-test purposes.
+Spots::DB::Handle is a wrapper around DBI connect that supplies
+project-specific defaults which can be over-ridden, e.g. for test
+purposes.
 
 The database handle is cached internally, so repeated dbh call on
 one of these objects should return the same database handle.   

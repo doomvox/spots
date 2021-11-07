@@ -76,7 +76,8 @@ a set of system-wide defaults for all of the Spots code.
 
 our $config =
   {
-   output_file_basename => 'mah_moz_ohm',
+#   output_file_basename => 'mah_moz_ohm',
+   output_file_basename => 'spots_central',
    # output_directory   => "$HOME/End/Stage/Rook/spots",
    output_directory     => "$HOME/End/Cave/Spots/Output",
    db_database_name     => 'spots',  # aka dbname
@@ -100,18 +101,22 @@ our $config =
 
    # Spots::Homepage::Generate
    # 'live'
-   color_container_bg => '#000000',
+   color_container_bg => '#0f0f0f',
    color_category_bg  => '#000000',
    color_footer_bg    => '#000000',
-   color_anchor_fg    => '#EFFFFF',
+   color_anchor_fg    => '#BBCCFF',
+   color_anchor_visited_fg   => '#9932cc',  # orchid
+   color_anchor_active_fg    => 'red',
+   color_anchor_hover_fg     => '#ff8c00',  # dark orange
    color_body_bg      => '#000000',
-   color_body_fg      => '#000000',
+   color_body_fg      => '#556b2f',  # dark olive green
 
-   # 'dev' (an alternate color scheme)
+    # 'dev' (an alternate color scheme)
    dev_color_container_bg => '#225588',
    dev_color_category_bg  => '#BBDD00',
    dev_color_footer_bg    => 'lightgray',
    dev_color_anchor_fg    => '#001111',
+   ## other anchor colors just use 'live' versions for now
    dev_color_body_bg      => '#000000',
    dev_color_body_fg      => '#CC33FF', 
 
@@ -136,26 +141,12 @@ our $config =
    raise_error =>  1,
    print_error =>  0,
 
-
-
    };
-
-
-
 
 1;
 
 =back
 
-=head1 SEE ALSO
-
-TODO Mention other useful documentation:
-
-  o  related modules:  L<Module::Name>
-  o  operating system documentation (such as man pages in UNIX)
-  o  any relevant external documentation such as RFCs or standards
-  o  discussion forum set up for your module (if you have it)
-  o  web site set up for your module (if you have it)
 
 =head1 AUTHOR
 

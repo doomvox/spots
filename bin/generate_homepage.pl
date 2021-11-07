@@ -9,8 +9,18 @@ generate_homepage.pl - generate mah_moz.html from spots db
 
 =head1 SYNOPSIS
 
-  # put output files in current directory
-  generate_homepage.pl
+  ## Before running: check the settings in Spots::Config
+
+  ## generate output in the Jimbanyan subdirectory inside of the Config.pm 'output_directory'
+  generate_homepage.pl -S Jimbanyan
+
+  ## same, using special basename "mah_moz_ohm":
+  generate_homepage.pl -S Jimbanyan  -B mah_moz_ohm
+
+  ## generate output in the given output directory, ignoring the Config.pm
+  generate_homepage.pl -O '/tmp/output'
+
+
 
 =head1 DESCRIPTION
 
@@ -20,6 +30,28 @@ in a tight one-screen layout).
 
 It uses these spots db tables to drive the process:
   spots, category, metacats
+
+The module Spots::Config has an output_directory field, which by
+default is where this script places the generated files (one
+.html and one .css):
+
+     output_directory     => "$HOME/End/Cave/Spots/Output",
+
+The output_file_basename in Config.pm controls the basename of the files:
+
+    output_file_basename => 'mah_moz_ohm',
+
+  
+=head2 personal notes
+
+  When done, pages can be pushed live by doing something like this:
+  
+    cd /home/doom/End/Cave/Spots/Output/Jimbanyan
+    scp mah_moz_ohm.* doomvox@shell.sonic.net:/home2/14/09/doomvox/public_html/obsidianrook.com/spots
+
+  Note, sonic.net likes to mess you up with that mangled path.
+  Might have to check it.
+
 
 =cut
 
@@ -46,15 +78,20 @@ our $VERSION = 0.01;
 my  $prog    = basename($0);
 
 my $DEBUG   = 1;                 # TODO set default to 0 when in production
+my $SUBDIR  = ''; 
+my $OUTLOC  = '';
+my $BASENAME = '';
 GetOptions ("d|debug"    => \$DEBUG,
             "v|version"  => sub{ say_version(); },
             "h|?|help"   => sub{ say_usage();   },
+            "S|subdir=s"   => \$SUBDIR,   # e.g. 'Jimbanyan'
+            "O|outloc=s"   => \$OUTLOC,   #
+            "B|basename=s" => \$BASENAME,
            ) or say_usage();
 #           "length=i" => \$length,        # numeric
 #           "file=s"   => \$file,          # string
 
 { no warnings 'once'; $DB::single = 1; }
-# use Spots::HomePage; b Spots::HomePage::generate_layout_metacats_fanout
 
 use FindBin qw($Bin);
 use lib ("$Bin/../lib/");
@@ -67,43 +104,37 @@ use Spots::Rectangler;
 use lib ("$Bin/../t/lib");
 use Spots::Rectangle::TestData ':all';  # draw_placed
 
-# my @over_cats = @ARGV; # optionally, a list of cat ids on the command-line 
 my @over_cats = ();  # DEBUG feature
 
-my $base =  $config->{ output_file_basename } || "mah_moz_ohm";
-my $monster = 'Jimbanyan';
 my $output_directory = $config->{ output_directory };
-$output_directory .= "/$monster" if $monster;
+if( $OUTLOC ) {
+  $output_directory = $OUTLOC;
+} elsif ( $SUBDIR ) {
+  $output_directory .= "/$SUBDIR";
+}  
 mkpath( $output_directory ) unless -d $output_directory;
+
+my $output_basename = $BASENAME || $config->{ output_file_basename }; ## e.g. "mah_moz_ohm";
 
 my $layo = Spots::HomePage::Layout::MetacatsFanout->new(
                db_database_name => $config->{ db_database_name },
                over_cats => \@over_cats,
             );
-
-{no warnings 'once'; $DB::single = 1;}
-
-# my $style;
-# $style     = $config->{ default_layout_style } || 'metacats_fanout',
-# say "Doing a $style run in $monster";
-# $layo->generate_layout( $style );
-
 $layo->generate_layout_metacats_fanout();
-
 my $placed = $layo->placed;
 
 my $tangler = Spots::Rectangler->new();
 $tangler->draw_placed( $placed, $output_directory, 'placed', 2 );
-my $report = $layo->check_placed( $placed );
+my $report = $tangler->check_placed( $placed );
 say $report;
 
 my $genner =
   Spots::HomePage::Generate->new(
-               output_basename  => $base,
+               output_basename  => $output_basename,
                output_directory => $output_directory,
                over_cats        => \@over_cats,
+               color_scheme     => 'live',
             );
-
 $genner->html_css_from_layout();
 
 # TODO check whether expected file has been created/modified
