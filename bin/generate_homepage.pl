@@ -137,7 +137,22 @@ my $genner =
             );
 $genner->html_css_from_layout();
 
-# TODO check whether expected file has been created/modified
+# check whether expected files have been created/modified
+my $html_file = "$output_directory/$output_basename.html";
+my $css_file  = "$output_directory/$output_basename.css";
+
+unless ( -e $html_file && -e $css_file ) {
+  die "Expected files don't exist: $html_file, $css_file"
+}
+
+my $time = 10; # mins
+my $chk_1 = -M $html_file;
+$chk_1 *= (24*60);
+my $chk_2 = -M $css_file;
+$chk_2 *= (24*60);
+unless( $chk_1 < $time  &&  $chk_2  < $time ) {
+  die "Expected files weren't created in last ten mins: $html_file, $css_file"
+}
 
 
 
